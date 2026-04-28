@@ -1,0 +1,235 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Chronicles of the Forgotten Realm - RPG Game API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: game
+    description: Game state operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /game/save:
+    post:
+      operationId: saveGame
+      tags: [game]
+      summary: Save game state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveGameRequest"
+      responses:
+        "200":
+          description: Game saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveGameResponse"
+
+  /game/load:
+    get:
+      operationId: loadGame
+      tags: [game]
+      summary: Load saved game state
+      responses:
+        "200":
+          description: Game state loaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoadGameResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    CharacterStats:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        class:
+          type: string
+          enum: [warrior, mage, rogue, cleric]
+        race:
+          type: string
+          enum: [human, elf, dwarf, halfling]
+        level:
+          type: integer
+        hp:
+          type: integer
+        maxHp:
+          type: integer
+        mp:
+          type: integer
+        maxMp:
+          type: integer
+        strength:
+          type: integer
+        dexterity:
+          type: integer
+        intelligence:
+          type: integer
+        wisdom:
+          type: integer
+        experience:
+          type: integer
+        gold:
+          type: integer
+        alive:
+          type: boolean
+      required:
+        - id
+        - name
+        - class
+        - race
+        - level
+        - hp
+        - maxHp
+        - mp
+        - maxMp
+        - strength
+        - dexterity
+        - intelligence
+        - wisdom
+        - experience
+        - gold
+        - alive
+
+    GameState:
+      type: object
+      properties:
+        party:
+          type: array
+          items:
+            $ref: "#/components/schemas/CharacterStats"
+        currentMap:
+          type: string
+        partyPosition:
+          type: object
+          properties:
+            x:
+              type: integer
+            y:
+              type: integer
+          required:
+            - x
+            - y
+        quests:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              description:
+                type: string
+              completed:
+                type: boolean
+            required:
+              - id
+              - title
+              - description
+              - completed
+        inventory:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+              quantity:
+                type: integer
+            required:
+              - id
+              - name
+              - type
+              - quantity
+        playTime:
+          type: integer
+      required:
+        - party
+        - currentMap
+        - partyPosition
+        - quests
+        - inventory
+        - playTime
+
+    SaveGameRequest:
+      type: object
+      properties:
+        slotId:
+          type: integer
+        gameState:
+          $ref: "#/components/schemas/GameState"
+      required:
+        - slotId
+        - gameState
+
+    SaveGameResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        savedAt:
+          type: string
+      required:
+        - success
+        - message
+        - savedAt
+
+    LoadGameResponse:
+      type: object
+      properties:
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              slotId:
+                type: integer
+              savedAt:
+                type: string
+              gameState:
+                $ref: "#/components/schemas/GameState"
+            required:
+              - slotId
+              - savedAt
+              - gameState
+      required:
+        - slots

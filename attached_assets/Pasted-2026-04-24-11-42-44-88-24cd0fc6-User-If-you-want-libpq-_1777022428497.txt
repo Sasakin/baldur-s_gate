@@ -1,0 +1,108 @@
+2026-04-24 11:42:44.88
+24cd0fc6
+User
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-04-24 11:42:44.88
+24cd0fc6
+User
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35643
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+severity: 'ERROR',
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:94:25105 {
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+internalQuery: undefined,
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+position: undefined,
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35643
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+length: 87,
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+cause: error: The endpoint has been disabled. Enable it using the API and retry.
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+detail: undefined,
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+at /home/runner/workspace/artifacts/api-server/dist/index.cjs:59:15227
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+Error loading game: t [Error]: Failed query: select "id", "slot_id", "game_state", "saved_at" from "game_saves" order by "game_saves"."saved_at" desc limit $1
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+code: 'XX000',
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+params: [ 10 ],
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+internalPosition: undefined,
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+hint: undefined,
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35852
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+query: 'select "id", "slot_id", "game_state", "saved_at" from "game_saves" order by "game_saves"."saved_at" desc limit $1',
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+at async Um.queryWithCache (/home/runner/workspace/artifacts/api-server/dist/index.cjs:66:32377)
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+params: 10
+2026-04-24 11:42:46.65
+24cd0fc6
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-04-24 12:01:10.08
+24cd0fc6
+System
+sending SIGTERM to artifact process artifact=artifacts/api-server
+2026-04-24 12:01:10.08
+24cd0fc6
+System
+received signal, shutting down artifact processes signal=terminated
+2026-04-24 12:01:10.09
+24cd0fc6
+System
+all artifact processes stopped
+2026-04-24 12:01:10.09
+24cd0fc6
+System
+main done, exiting
+2026-04-24 12:01:10.09
+24cd0fc6
+System
+artifact process exited with error artifact=artifacts/api-server error=signal: terminated

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Chronicles of the Forgotten Realm"
+version = "1.0.0"
+id = "artifacts/baldurs-gate"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 23418
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/baldurs-gate run dev"
+
+[services.env]
+PORT = "23418"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/baldurs-gate", "run", "build"]
+publicDir = "artifacts/baldurs-gate/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
