@@ -49,21 +49,22 @@ interface Props {
 
 // ─── Asset Config ─────────────────────────────────────────────────────────
 const ASSETS = {
-  // Textures
-  grass: "https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?q=80&w=200&auto=format&fit=crop",
-  stone: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?q=80&w=200&auto=format&fit=crop",
-  wood:  "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=200&auto=format&fit=crop",
-  water: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?q=80&w=200&auto=format&fit=crop",
-  wall:  "https://images.unsplash.com/photo-1469173479606-abc0360a0f7b?q=80&w=200&auto=format&fit=crop",
+  // Textures - Using local isometric tiles
+  grass: "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_1.png",
+  stone: "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_30.png",
+  wood:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_36.png",
+  water: "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_2.png",
+  wall:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_69.png",
+  dirt:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_28.png",
   
-  // Heroes (Skins)
-  warrior: "/images_user_upload/warior.jpg",
-  mage:    "/images_user_upload/mag.jpg",
-  rogue:   "/images_user_upload/warior.jpg",
-  cleric:  "/images_user_upload/warior.jpg",
+  // Heroes (Skins) - Using local assets
+  warrior: "/images/hero/isometric_hero/steel_armor.png",
+  mage:    "/images/hero/isometric_hero/rod.png",
+  rogue:   "/images/hero/isometric_hero/leather_armor.png",
+  cleric:  "/images/hero/isometric_hero/steel_armor.png",
   
   // Враги
-  skeleton: "/images_user_upload/skeleton.jpg",
+  skeleton: "/images/hero/isometric_hero/greatsword.png",
 };
 
 export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
@@ -122,8 +123,12 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
       // Update patterns if images are loaded
       if (Object.keys(imagesRef.current).length > 0 && Object.keys(patternsRef.current).length === 0) {
         Object.entries(imagesRef.current).forEach(([key, img]) => {
-          if (["grass", "stone", "wood", "water", "wall"].includes(key)) {
-            patternsRef.current[key] = ctx.createPattern(img, 'repeat')!;
+          if (["grass", "stone", "wood", "water", "wall", "dirt"].includes(key)) {
+            try {
+              patternsRef.current[key] = ctx.createPattern(img, 'repeat')!;
+            } catch(e) {
+              console.warn('Failed to create pattern for:', key);
+            }
           }
         });
       }
@@ -336,7 +341,7 @@ function drawTileTop(
   ctx.fill();
 
   // 2. Texture Overlay
-  const patternKey = tile === 1 ? "grass" : (tile === 2 || tile === 6) ? "stone" : (tile === 7) ? "wood" : (tile === 4) ? "water" : null;
+  const patternKey = tile === 1 ? "grass" : (tile === 2) ? "stone" : (tile === 6) ? "dirt" : (tile === 7) ? "wood" : (tile === 4) ? "water" : null;
   if (patternKey && patterns && patterns[patternKey]) {
     ctx.save();
     ctx.globalCompositeOperation = 'soft-light';
@@ -605,10 +610,36 @@ function drawUnit(
   // 3. Dynamic Squash based on bob height
   const squash = 1 + (isMoving ? (10 - bob) * 0.015 : 0);
   
+  // 4. Enhanced animations
+  const breathe = Math.sin(cycle * 0.5) * 2;
+  const auraPulse = Math.sin(cycle * 2) * 0.1 + 0.9;
+  
   const figW = isHero ? 36 : 32;
   const figH = isHero ? 48 : 40;
-  const figY = sy - 4 - bob;
+  const figY = sy - 4 - bob + breathe;
 
+  //Magic Aura Particles
+  if (isHero) {
+    for (let i = 0; i < 5; i++) {
+      const angle = (time * 0.001 + i * 1.2) % (Math.PI * 2);
+      const radius = 25 + Math.sin(cycle * 2 + i) * 8;
+      const px = sx + Math.cos(angle) * radius;
+      const py = sy - 20 + Math.sin(angle * 2) * 10;
+      const size = 2 + Math.sin(cycle * 3 + i) * 1;
+      const alpha = 0.3 + Math.sin(cycle * 4 + i) * 0.2;
+      
+      const auraColor = id === "mage" ? "#88ccff" : (id === "cleric" ? "#ffdd88" : "#ffcc88");
+      ctx.fillStyle = auraColor.replace(")", `, ${alpha})`).replace("rgb", "rgba").replace("#", "");
+      
+      // Convert hex to rgba
+      const hex = id === "mage" ? "136,204,255" : (id === "cleric" ? "255,221,136" : "255,204,136");
+      ctx.fillStyle = `rgba(${hex}, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
   // 1. Dynamic Drop Shadow
   ctx.save();
   const shadowScale = 1 - (bob / 40);
@@ -642,30 +673,39 @@ function drawUnit(
   ctx.rotate(tilt);
   ctx.scale(1 / squash, squash);
 
+  // Hero glow effect
+  if (isHero) {
+    ctx.shadowColor = "rgba(255, 200, 100, 0.6)";
+    ctx.shadowBlur = 15 * auraPulse;
+  }
+
   if (img) {
-    // Drawn Figure Look: No rectangular clip, just the image with a subtle rim glow
-    ctx.shadowColor = isHero ? "rgba(255, 230, 100, 0.8)" : "rgba(255, 50, 50, 0.8)";
-    ctx.shadowBlur = isMoving ? 12 : 6;
     ctx.drawImage(img, -figW/2, -figH/2, figW, figH);
     ctx.shadowBlur = 0;
   } else {
-    // Fallback: Card standee
+    // Enhanced fallback: Card standee with gradient and details
     ctx.beginPath();
     ctx.roundRect(-figW/2, -figH/2, figW, figH, 5);
     ctx.clip();
     const color = CLASS_COLORS[id] || "#888";
     const grad = ctx.createLinearGradient(0, -figH/2, 0, figH/2);
     grad.addColorStop(0, color);
+    grad.addColorStop(0.5, lighten(color, 0.2));
     grad.addColorStop(1, "#000");
     ctx.fillStyle = grad;
     ctx.fillRect(-figW/2, -figH/2, figW, figH);
+    
+    // Add face details
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(-8, -10, 4, 4);
+    ctx.fillRect(4, -10, 4, 4);
+    ctx.fillRect(-4, 0, 8, 2);
   }
 
   // Interaction rim
   if (isHero) {
     ctx.strokeStyle = `rgba(255, 220, 100, ${isMoving ? 1.0 : 0.4})`;
     ctx.lineWidth = 1.5;
-    // We draw a faint box only if moving or for definition, but much more subtle
     ctx.globalAlpha = 0.3;
     ctx.strokeRect(-figW/2, -figH/2, figW, figH);
   }
@@ -678,7 +718,7 @@ function drawUnit(
      ctx.fillStyle = "rgba(0,0,0,0.6)";
      ctx.fillRect(sx - 12, sy - 55, 24, hpH);
      ctx.fillStyle = "#ff3333";
-     ctx.fillRect(sx - 12, sy - 55, 18, hpH); // Current HP mockup
+     ctx.fillRect(sx - 12, sy - 55, 18, hpH);
   }
 }
 
