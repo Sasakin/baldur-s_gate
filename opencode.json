@@ -29,6 +29,15 @@
         "edit": "allow",
         "bash": "allow"
       }
+    },
+    "ui": {
+      "description": "UI/UX specialist — React components, layouts, screens, menus, HUD, forms, responsive design, frames, animations, game UI state flow, shadcn/ui",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow"
+      }
     }
   }
 }
