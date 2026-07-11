@@ -20,6 +20,7 @@
     "@tailwindcss/vite": "^4.2.4",
     "@types/express": "^5.0.0",
     "@types/node": "^25.3.3",
+    "@types/pngjs": "^6.0.5",
     "@vitejs/plugin-react": "^5.0.4",
     "lightningcss": "^1.32.0",
     "lightningcss-win32-x64-msvc": "^1.32.0",

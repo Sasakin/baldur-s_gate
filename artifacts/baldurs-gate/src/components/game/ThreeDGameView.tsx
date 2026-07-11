@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Stars, Float, SoftShadows, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
@@ -9,6 +9,34 @@ import { Point } from "../../lib/pathfinding";
 interface Props {
   state: LocalGameState;
   onTileClick: (x: number, y: number) => void;
+}
+
+// Sprite sheet config (matches IsometricCanvas.tsx)
+const SPRITE_SHEET_PATH = "/images/heroes_spritesheet.png"
+const SPRITE_FRAME_W = 64
+const SPRITE_FRAME_H = 64
+const SPRITE_COLS = 6
+const SPRITE_FRAMES = 4
+
+// Sprite index mapping (matches IsometricCanvas.tsx)
+const SPRITE_MAP: Record<string, number> = {
+  warrior: 0,
+  mage: 1,
+  rogue: 2,
+  cleric: 3,
+  skeleton: 6,
+  goblin: 6,
+  zombie: 6,
+  ghost: 6,
+  skeleton_archer: 7,
+  goblin_archer: 7,
+  wolf: 7,
+  skeleton_mage: 8,
+  dark_priest: 8,
+  lich: 8,
+  guardian: 6,
+  malachar: 9,
+  boss: 9,
 }
 
 const TILE_SIZE = 1;
@@ -56,14 +84,57 @@ const CLASS_COLORS: Record<string, string> = {
   cleric:  "#CCAA44",
 }
 
+// Cache for loaded textures (shared across units of same class)
+const textureCache = new Map<string, THREE.Texture>()
+
 function Unit3D({ x, y, isHero, cls = "warrior" }: { x: number, y: number, isHero?: boolean, cls?: string }) {
   const group = useRef<THREE.Group>(null)
   const targetPos = useRef(new THREE.Vector3(x, 0, y))
   const classColor = CLASS_COLORS[cls] || "#888"
+  const [texture, setTexture] = useState<THREE.Texture | null>(null)
+  const cacheKey = `${SPRITE_SHEET_PATH}@${cls}`
 
+  // Load sprite texture with class-specific offset
   useEffect(() => {
-    targetPos.current.set(x, 0, y)
-  }, [x, y])
+    if (textureCache.has(cacheKey)) {
+      setTexture(textureCache.get(cacheKey)!)
+      return
+    }
+
+    const loader = new THREE.TextureLoader()
+    const charIdx = SPRITE_MAP[cls] ?? (isHero ? 0 : 6)
+    const charCol = charIdx % SPRITE_COLS
+    const charRow = Math.floor(charIdx / SPRITE_COLS)
+    
+    loader.load(
+      SPRITE_SHEET_PATH,
+      (tex) => {
+        tex.minFilter = THREE.NearestFilter
+        tex.magFilter = THREE.NearestFilter
+        tex.colorSpace = THREE.SRGBColorSpace
+        
+        // Set UV offset to show just this character's first frame
+        const texFramesW = SPRITE_COLS * SPRITE_FRAMES
+        const texFramesH = 2
+        tex.offset.x = (charCol * SPRITE_FRAMES) / texFramesW
+        tex.offset.y = (texFramesH - 1 - charRow) / texFramesH // Flip Y
+        tex.repeat.x = SPRITE_FRAMES / texFramesW
+        tex.repeat.y = 1 / texFramesH
+        
+        textureCache.set(cacheKey, tex)
+        setTexture(tex)
+      },
+      undefined,
+      () => {
+        // Fallback: no texture
+        setTexture(null)
+      }
+    )
+
+    return () => {
+      // Note: we keep the cache, don't dispose on unmount
+    }
+  }, [cacheKey, isHero, cls])
 
   useFrame((state, delta) => {
     if (group.current) {
@@ -90,11 +161,23 @@ function Unit3D({ x, y, isHero, cls = "warrior" }: { x: number, y: number, isHer
 
   return (
     <group ref={group} position={[x, 0.5, y]}>
-      {/* Class-colored body core */}
+      {/* Always keep the base box as shadow receiver */}
       <mesh castShadow receiveShadow>
         <boxGeometry args={[0.45, 0.75, 0.1]} />
         <meshStandardMaterial color={classColor} roughness={0.4} metalness={0.6} />
       </mesh>
+
+      {/* Sprite plane with class texture */}
+      {texture && (
+        <sprite position={[0, 0.4, 0]} scale={[0.75, 0.75, 1]}>
+          <spriteMaterial
+            map={texture}
+            transparent
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </sprite>
+      )}
 
       {/* Pedestal Base */}
       <mesh position={[0, -0.45, 0]} receiveShadow>
@@ -171,7 +254,7 @@ function GameScene({ state, onTileClick }: Props) {
          if (!visible) return null;
          
          return (
-           <Unit3D key={`enemy-${idx}`} x={e.x} y={e.y} />
+           <Unit3D key={`enemy-${idx}`} x={e.x} y={e.y} cls={e.refId} />
          );
       })}
 

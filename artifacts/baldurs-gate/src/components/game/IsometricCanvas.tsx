@@ -57,31 +57,44 @@ const ASSETS = {
   wall:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_69.png",
   dirt:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_28.png",
   
-  // Character sprite sheet (8 characters, 4 dirs, 4 frames)
-  heroes: "/images/classic_heroes.png",
+  // Enhanced spritesheet: 64x64px frames, 6 cols x 2 rows
+  // Row 0: warrior, mage, rogue, cleric
+  // Row 1: skeleton, skeleton_archer, skeleton_mage, boss
+  heroes: "/images/heroes_spritesheet.png",
+  
+  // Legacy spritesheet (fallback)
+  heroesLegacy: "/images/classic_heroes.png",
 };
 
-// Characters in sheet (left to right, top to bottom):
-// 0: Classic Hero (warrior)
-// 1: Ninja (rogue)
-// 2: Knight (mage)
-// 3: Viking (skeleton/enemy)
-// 4: Musket Guy (cleric)
-// 5: Pirate
-// 6-11: variants on row 2
+// Characters in sheet (left to right, top to bottom, 6 per row):
+// Row 0: warrior (0), mage (1), rogue (2), cleric (3), (empty), (empty)
+// Row 1: skeleton (6), skeleton_archer (7), skeleton_mage (8), boss (9), (empty), (empty)
 const SPRITE_MAP: Record<string, number> = {
   warrior: 0,
-  rogue: 1,
-  mage: 2,
-  cleric: 4,
-  skeleton: 3,
+  mage: 1,
+  rogue: 2,
+  cleric: 3,
+  // Enemy types
+  skeleton: 6,
+  goblin: 6,
+  zombie: 6,
+  ghost: 6,
+  skeleton_archer: 7,
+  goblin_archer: 7,
+  wolf: 7,
+  skeleton_mage: 8,
+  dark_priest: 8,
+  lich: 8,
+  guardian: 6,
+  malachar: 9,
+  boss: 9,
 };
 
 // Sprite sheet configuration
-// Frame size: 32x32 px
+// Frame size: 64x64 px (upgraded from 32x32)
 const SPRITE_CFG = {
-  frameW: 32,
-  frameH: 32,
+  frameW: 64,
+  frameH: 64,
   charsPerRow: 6,
   framesPerChar: 4,
 };
@@ -260,7 +273,7 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
 
              const enemy = map.enemies.find(e => e.x === tx && e.y === ty && !e.defeated);
              if (enemy && visible) {
-                drawUnit(ctx, sx, sy, "skeleton", imagesRef.current.heroes, false);
+                drawUnit(ctx, sx, sy, enemy.refId, imagesRef.current.heroes, false);
              }
            }
         }
@@ -561,8 +574,8 @@ function drawTileHighlight(ctx: CanvasRenderingContext2D, sx: number, sy: number
 
 
 // ─── Sprite Sheet Drawing ────────────────────────────────────────────────
-const SHEET_FRAME_W = 32;
-const SHEET_FRAME_H = 32;
+const SHEET_FRAME_W = 64;
+const SHEET_FRAME_H = 64;
 const SHEET_COLS = 6;  // characters per row
 const SHEET_ROWS = 2;  // character rows
 const FRAMES_PER_CHAR = 4;  // animation frames per direction
@@ -611,20 +624,22 @@ function drawUnit(
   ctx.save();
   ctx.fillStyle = `rgba(0,0,0,${isMoving ? 0.3 : 0.4})`;
   ctx.beginPath();
-  ctx.ellipse(sx, sy + 2, 14, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx, sy + 2, 16, 8, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
   
   // Draw sprite
   if (sheet && sheet.complete && sheet.naturalWidth > 0) {
     const charIdx = SPRITE_MAP[id] ?? 0;
-    const drawScale = isHero ? 2.2 : 1.8;
+    // Use 1.0 scale for 64x64 sprites (they're already bigger)
+    // Heroes slightly bigger than enemies
+    const drawScale = isHero ? 1.2 : 1.0;
     const drawW = SHEET_FRAME_W * drawScale;
     const drawH = SHEET_FRAME_H * drawScale;
     
     // Position: sprite bottom at sy
     const drawX = sx - drawW / 2;
-    const drawY = sy - drawH + 8;
+    const drawY = sy - drawH + 4;
     
     ctx.imageSmoothingEnabled = false;
     drawSpriteSheet(ctx, sheet, charIdx, frame, drawX, drawY, drawScale);
@@ -634,7 +649,7 @@ function drawUnit(
     ctx.fillStyle = isHero ? (CLASS_COLORS[id] || "#888") : "#4a4a4a"
     ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.005) * 0.3  // gentle pulse
     ctx.beginPath()
-    ctx.arc(sx, sy - 10, isHero ? 12 : 10, 0, Math.PI * 2)
+    ctx.arc(sx, sy - 10, isHero ? 14 : 12, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
   }
@@ -643,9 +658,9 @@ function drawUnit(
   if (!isHero) {
     const hpH = 3;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(sx - 12, sy - 45, 24, hpH);
+    ctx.fillRect(sx - 12, sy - 48, 24, hpH);
     ctx.fillStyle = "#ff3333";
-    ctx.fillRect(sx - 12, sy - 45, 18, hpH);
+    ctx.fillRect(sx - 12, sy - 48, 18, hpH);
   }
 }
 

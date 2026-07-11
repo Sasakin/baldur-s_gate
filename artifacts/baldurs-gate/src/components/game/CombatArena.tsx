@@ -18,12 +18,26 @@ import { EffectOverlay, EffectOverlayRef } from "./EffectOverlay";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const CLASS_ICONS: Record<string, string> = {
-  warrior: "⚔️",
-  mage:    "🔮",
-  rogue:   "🏹",
-  cleric:  "✝️",
+// Class icons: positions in icons/game_icons.png (64x64 icons, 4 cols x 2 rows)
+// Row 0: warrior(0), mage(1), rogue(2), cleric(3)
+// Row 1: skeleton(4), skeleton_archer(5), skeleton_mage(6), boss(7)
+const CLASS_ICON_SPRITES: Record<string, number> = {
+  warrior: 0,
+  mage:    1,
+  rogue:   2,
+  cleric:  3,
 }
+// Enemy icons mapped by class (enemies use standard classes for stats)
+// warrior → skeleton (4), mage → skeleton_mage (6), rogue → skeleton_archer (5), cleric → skeleton_mage (6)
+const ENEMY_ICON_SPRITES: Record<string, number> = {
+  warrior: 4,
+  mage:    6,
+  rogue:   5,
+  cleric:  6,
+}
+const ICON_SHEET = "/images/icons/game_icons.png"
+const ICON_SIZE = 64
+
 const CLASS_COLORS: Record<string, string> = { warrior: "#4488FF", mage: "#AA44FF", rogue: "#44DD88", cleric: "#FFCC44" };
 
 const STATUS_ICONS: Record<StatusEffectType, string> = {
@@ -122,11 +136,13 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
       className="absolute inset-0 flex flex-col"
       style={{
         background: `
+          url('/images/combat-bg.png') center/cover no-repeat,
           radial-gradient(ellipse 120% 60% at 50% 100%, rgba(80,20,0,0.6) 0%, transparent 70%),
           radial-gradient(ellipse 80% 40% at 20% 50%, rgba(0,20,80,0.3) 0%, transparent 60%),
           radial-gradient(ellipse 80% 40% at 80% 50%, rgba(80,0,0,0.3) 0%, transparent 60%),
           linear-gradient(180deg, #0a0a12 0%, #12080c 40%, #0e0e18 100%)
         `,
+        backgroundBlendMode: "overlay, normal, normal, normal, normal",
       }}
     >
       {/* ── Ground plane ──────────────────────────────────────────────────── */}
@@ -310,7 +326,7 @@ function UnitCard({ entity, side, isActive, isTargetable, floats, index, compact
   const isCasting = !!entity.castingSkillId;
 
   const color = isParty ? (CLASS_COLORS[entity.class] ?? "#4488FF") : "#CC3333";
-  const icon = isParty ? CLASS_ICONS[entity.class] : "💀"
+  const iconIdx = isParty ? CLASS_ICON_SPRITES[entity.class] : ENEMY_ICON_SPRITES[entity.class]
 
   return (
     <motion.div
@@ -352,10 +368,25 @@ function UnitCard({ entity, side, isActive, isTargetable, floats, index, compact
         }}
       >
         <div className="absolute inset-0 opacity-10" style={{ backgroundColor: color }} />
-        {icon.startsWith("/") ? (
-          <img src={icon} alt="" className="w-full h-full object-contain" />
+        {iconIdx !== undefined ? (
+          <div className="w-full h-full overflow-hidden relative">
+            <div
+              className="absolute"
+              style={{
+                width: ICON_SIZE,
+                height: ICON_SIZE,
+                backgroundImage: `url(${ICON_SHEET})`,
+                backgroundPosition: `-${(iconIdx % 4) * ICON_SIZE}px -${Math.floor(iconIdx / 4) * ICON_SIZE}px`,
+                backgroundSize: `${ICON_SIZE * 4}px ${ICON_SIZE * 2}px`,
+                imageRendering: "pixelated",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+          </div>
         ) : (
-          icon
+          <span className="text-lg">{isParty ? "⚔️" : "💀"}</span>
         )}
 
         {/* HP Arc (SVG) */}
