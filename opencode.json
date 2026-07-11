@@ -11,6 +11,15 @@
         "edit": "allow",
         "bash": "allow"
       }
+    },
+    "graphics": {
+      "description": "Graphics and VFX specialist — sprites, textures, 3D models, shaders, animations, particles, lighting, rendering pipeline",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow"
+      }
     }
   }
 }
