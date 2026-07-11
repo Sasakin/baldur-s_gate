@@ -1,24 +1,30 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# Dependencies
+node_modules/
+.pnpm-store/
 
-# compiled output
-dist
-tmp
-out-tsc
+# Build outputs
+dist/
+tmp/
+out-tsc/
+
+# TypeScript
 *.tsbuildinfo
-.expo
-.expo-shared
-.pnpm-store
-# dependencies
-node_modules
 
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+credentials.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# IDE - JetBrains
+.idea/
+*.iml
+.explyt/
 
 # IDE - VSCode
 .vscode/*
@@ -27,23 +33,32 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
+# IDE - Other
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# System Files
+# OS files
 .DS_Store
 Thumbs.db
 
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
+# Testing
+/coverage
 
-# Replit
+# Misc
+/.sass-cache
+/connect.lock
+/libpeerconnection.log
+testem.log
+/typings
+
+# Docker
 .cache/
 .local/
+
+# Temporary project-specific rules (from cursor/replit)
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md

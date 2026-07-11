@@ -57,14 +57,33 @@ const ASSETS = {
   wall:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_69.png",
   dirt:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_28.png",
   
-  // Heroes (Skins) - Using local assets
-  warrior: "/images/hero/isometric_hero/steel_armor.png",
-  mage:    "/images/hero/isometric_hero/rod.png",
-  rogue:   "/images/hero/isometric_hero/leather_armor.png",
-  cleric:  "/images/hero/isometric_hero/steel_armor.png",
-  
-  // Враги
-  skeleton: "/images/hero/isometric_hero/greatsword.png",
+  // Character sprite sheet (8 characters, 4 dirs, 4 frames)
+  heroes: "/images/classic_heroes.png",
+};
+
+// Characters in sheet (left to right, top to bottom):
+// 0: Classic Hero (warrior)
+// 1: Ninja (rogue)
+// 2: Knight (mage)
+// 3: Viking (skeleton/enemy)
+// 4: Musket Guy (cleric)
+// 5: Pirate
+// 6-11: variants on row 2
+const SPRITE_MAP: Record<string, number> = {
+  warrior: 0,
+  rogue: 1,
+  mage: 2,
+  cleric: 4,
+  skeleton: 3,
+};
+
+// Sprite sheet configuration
+// Frame size: 32x32 px
+const SPRITE_CFG = {
+  frameW: 32,
+  frameH: 32,
+  charsPerRow: 6,
+  framesPerChar: 4,
 };
 
 export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
@@ -219,19 +238,31 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
 
           ctx.globalAlpha = 1.0;
 
-          // Sprites
-          if (visible || explored) {
-            const isExit = map.transitions.some(t => t.x === tx && t.y === ty);
-            if (isExit) drawSprite(ctx, sx, sy - 8, "#FFD700", "▼", 13);
+           // Sprites
+           if (visible || explored) {
+             const isExit = map.transitions.some(t => t.x === tx && t.y === ty);
+             if (isExit) {
+               // Draw exit marker
+               ctx.fillStyle = "#FFD700";
+               ctx.font = "bold 13px serif";
+               ctx.textAlign = "center";
+               ctx.fillText("▼", sx, sy - 8);
+             }
 
-            const item = map.items.find(i => i.x === tx && i.y === ty && !i.looted);
-            if (item) drawSprite(ctx, sx, sy - 10, "#FFD700", "✦", 12);
+             const item = map.items.find(i => i.x === tx && i.y === ty && !i.looted);
+             if (item) {
+               // Draw item marker
+               ctx.fillStyle = "#FFD700";
+               ctx.font = "bold 12px serif";
+               ctx.textAlign = "center";
+               ctx.fillText("✦", sx, sy - 10);
+             }
 
-            const enemy = map.enemies.find(e => e.x === tx && e.y === ty && !e.defeated);
-            if (enemy && visible) {
-               drawUnit(ctx, sx, sy, "skeleton", imagesRef.current.skeleton, false);
-            }
-          }
+             const enemy = map.enemies.find(e => e.x === tx && e.y === ty && !e.defeated);
+             if (enemy && visible) {
+                drawUnit(ctx, sx, sy, "skeleton", imagesRef.current.heroes, false);
+             }
+           }
         }
       }
 
@@ -247,7 +278,7 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
       const { sx: psx, sy: psy } = toScreen(vpx, vpy, offsetX, offsetY);
       drawAtmosphere(ctx, psx, psy, W, H);
       
-      drawUnit(ctx, psx, psy, s.party[0]?.class || "warrior", imagesRef.current[s.party[0]?.class || "warrior"], isActuallyMoving, true);
+      drawUnit(ctx, psx, psy, s.party[0]?.class || "warrior", imagesRef.current.heroes, isActuallyMoving, true);
       
       drawMiniMap(ctx, s, map, W, H, cols, rows);
     };
@@ -527,199 +558,205 @@ function drawTileHighlight(ctx: CanvasRenderingContext2D, sx: number, sy: number
   ctx.fill();
 }
 
-function drawSprite(
+
+
+// ─── Sprite Sheet Drawing ────────────────────────────────────────────────
+const SHEET_FRAME_W = 32;
+const SHEET_FRAME_H = 32;
+const SHEET_COLS = 6;  // characters per row
+const SHEET_ROWS = 2;  // character rows
+const FRAMES_PER_CHAR = 4;  // animation frames per direction
+const DIRS_PER_CHAR = 4;   // directions per character
+
+function drawSpriteSheet(
   ctx: CanvasRenderingContext2D,
-  sx: number, sy: number,
-  bgColor: string, label: string, radius = 16
+  sheet: HTMLImageElement,
+  charIndex: number,
+  frame: number,
+  x: number, y: number,
+  scale: number = 2
 ) {
-  const time = Date.now() * 0.004;
-  const bob = Math.sin(time) * 3; // Animation bobbing
+  // Sheet: 6 chars per row, each char = 4 frames horizontally
+  const charsPerRow = 6;
+  const framesPerChar = 4;
   
-  // 1. Shadow (Bottom)
-  ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.beginPath();
-  ctx.ellipse(sx, sy + 4, 14, 7, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // 2. Base (Standee support)
-  const baseH = 4;
-  ctx.fillStyle = "#1a1a1a";
-  ctx.beginPath();
-  ctx.ellipse(sx, sy, 12, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#333";
-  ctx.fillRect(sx - 12, sy - baseH, 24, baseH);
-  ctx.beginPath();
-  ctx.ellipse(sx, sy - baseH, 12, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // 3. Figure Sprite (Standee)
-  const figY = sy - baseH + bob - 20;
-  const figW = 32;
-  const figH = 40;
-  
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(sx - figW/2, figY - figH/2, figW, figH, 4);
-  ctx.clip();
-  
-  const grad = ctx.createLinearGradient(sx, figY - figH/2, sx, figY + figH/2);
-  grad.addColorStop(0, bgColor);
-  grad.addColorStop(1, "#000");
-  ctx.fillStyle = grad;
-  ctx.fillRect(sx - figW/2, figY - figH/2, figW, figH);
-  
-  ctx.fillStyle = "#fff";
-  ctx.font = `bold 20px serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.shadowColor = "rgba(0,0,0,0.8)";
-  ctx.shadowBlur = 4;
-  ctx.fillText(label, sx, figY);
-  ctx.restore();
-  
-  ctx.strokeStyle = "rgba(255,215,0,0.6)"; 
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(sx - figW/2, figY - figH/2, figW, figH, 4);
-  ctx.stroke();
-  ctx.restore();
+  const charCol = charIndex % charsPerRow;
+  const charRow = Math.floor(charIndex / charsPerRow);
+    
+  const srcX = (charCol * framesPerChar + (frame % 4)) * SHEET_FRAME_W;
+  const srcY = charRow * SHEET_FRAME_H;
+    
+  const drawW = SHEET_FRAME_W * scale;
+  const drawH = SHEET_FRAME_H * scale;
+    
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(sheet, srcX, srcY, SHEET_FRAME_W, SHEET_FRAME_H, x, y, drawW, drawH);
 }
 
 function drawUnit(
   ctx: CanvasRenderingContext2D, 
   sx: number, sy: number, 
   id: string, 
-  img?: HTMLImageElement,
+  sheet?: HTMLImageElement,
   isMoving = false,
   isHero = false
 ) {
   const time = Date.now();
-  const speed = isMoving ? 0.012 : 0.005;
-  const cycle = time * speed;
   
-  // 1. Rhythmic Walking Logic (Double-beat bobbing)
-  const stepCycle = isMoving ? Math.abs(Math.sin(cycle * 1.5)) : Math.sin(cycle) * 0.5 + 0.5;
-  const bob = isMoving ? stepCycle * 10 : stepCycle * 4;
+  // Simple stable frame: changes every 300ms
+  const frameDelay = isMoving ? 300 : 500;
+  const frame = Math.floor((time % 2000) / frameDelay) % 4;
   
-  // 2. Alternating Tilt for Footsteps
-  const tiltCycle = Math.sin(cycle * (isMoving ? 0.75 : 0.3));
-  const tilt = isMoving ? tiltCycle * 0.15 : tiltCycle * 0.04;
-  
-  // 3. Dynamic Squash based on bob height
-  const squash = 1 + (isMoving ? (10 - bob) * 0.015 : 0);
-  
-  // 4. Enhanced animations
-  const breathe = Math.sin(cycle * 0.5) * 2;
-  const auraPulse = Math.sin(cycle * 2) * 0.1 + 0.9;
-  
-  const figW = isHero ? 36 : 32;
-  const figH = isHero ? 48 : 40;
-  const figY = sy - 4 - bob + breathe;
-
-  //Magic Aura Particles
-  if (isHero) {
-    for (let i = 0; i < 5; i++) {
-      const angle = (time * 0.001 + i * 1.2) % (Math.PI * 2);
-      const radius = 25 + Math.sin(cycle * 2 + i) * 8;
-      const px = sx + Math.cos(angle) * radius;
-      const py = sy - 20 + Math.sin(angle * 2) * 10;
-      const size = 2 + Math.sin(cycle * 3 + i) * 1;
-      const alpha = 0.3 + Math.sin(cycle * 4 + i) * 0.2;
-      
-      const auraColor = id === "mage" ? "#88ccff" : (id === "cleric" ? "#ffdd88" : "#ffcc88");
-      ctx.fillStyle = auraColor.replace(")", `, ${alpha})`).replace("rgb", "rgba").replace("#", "");
-      
-      // Convert hex to rgba
-      const hex = id === "mage" ? "136,204,255" : (id === "cleric" ? "255,221,136" : "255,204,136");
-      ctx.fillStyle = `rgba(${hex}, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(px, py, size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  
-  // 1. Dynamic Drop Shadow
+  // Shadow
   ctx.save();
-  const shadowScale = 1 - (bob / 40);
-  const shadowAlpha = isMoving ? 0.3 * shadowScale : 0.4 * shadowScale;
-  ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+  ctx.fillStyle = `rgba(0,0,0,${isMoving ? 0.3 : 0.4})`;
   ctx.beginPath();
-  ctx.ellipse(sx, sy + 3, 18 * shadowScale, 9 * shadowScale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Ground Ring (Combat feel)
-  if (isHero) {
-    ctx.strokeStyle = `rgba(255, 220, 100, ${isMoving ? 0.2 : 0.1})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.ellipse(sx, sy, 20, 10, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // 2. Base Plate
-  ctx.save();
-  ctx.fillStyle = isHero ? "#111" : "#221";
-  ctx.beginPath();
-  ctx.ellipse(sx, sy, 14, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx, sy + 2, 14, 7, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
-
-  // 3. Figure Sprite (The "Animated" Standee)
-  ctx.save();
-  ctx.translate(sx, figY);
-  ctx.rotate(tilt);
-  ctx.scale(1 / squash, squash);
-
-  // Hero glow effect
-  if (isHero) {
-    ctx.shadowColor = "rgba(255, 200, 100, 0.6)";
-    ctx.shadowBlur = 15 * auraPulse;
-  }
-
-  if (img) {
-    ctx.drawImage(img, -figW/2, -figH/2, figW, figH);
-    ctx.shadowBlur = 0;
-  } else {
-    // Enhanced fallback: Card standee with gradient and details
-    ctx.beginPath();
-    ctx.roundRect(-figW/2, -figH/2, figW, figH, 5);
-    ctx.clip();
-    const color = CLASS_COLORS[id] || "#888";
-    const grad = ctx.createLinearGradient(0, -figH/2, 0, figH/2);
-    grad.addColorStop(0, color);
-    grad.addColorStop(0.5, lighten(color, 0.2));
-    grad.addColorStop(1, "#000");
-    ctx.fillStyle = grad;
-    ctx.fillRect(-figW/2, -figH/2, figW, figH);
+  
+  // Draw sprite
+  if (sheet && sheet.complete && sheet.naturalWidth > 0) {
+    const charIdx = SPRITE_MAP[id] ?? 0;
+    const drawScale = isHero ? 2.2 : 1.8;
+    const drawW = SHEET_FRAME_W * drawScale;
+    const drawH = SHEET_FRAME_H * drawScale;
     
-    // Add face details
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(-8, -10, 4, 4);
-    ctx.fillRect(4, -10, 4, 4);
-    ctx.fillRect(-4, 0, 8, 2);
-  }
-
-  // Interaction rim
-  if (isHero) {
-    ctx.strokeStyle = `rgba(255, 220, 100, ${isMoving ? 1.0 : 0.4})`;
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.3;
-    ctx.strokeRect(-figW/2, -figH/2, figW, figH);
+    // Position: sprite bottom at sy
+    const drawX = sx - drawW / 2;
+    const drawY = sy - drawH + 8;
+    
+    ctx.imageSmoothingEnabled = false;
+    drawSpriteSheet(ctx, sheet, charIdx, frame, drawX, drawY, drawScale);
+  } else {
+    // Fallback procedural - smaller isometric-friendly size
+    const figW = isHero ? 24 : 20;
+    const figH = isHero ? 36 : 30;
+    const bob = Math.sin(time * 0.002) * 1.5;
+    const figY = sy - bob;
+    
+    ctx.save();
+    ctx.translate(sx, figY - figH + 4);
+    drawProceduralCharacter(ctx, id, -figW/2, 0, figW, figH, isHero);
+    ctx.restore();
   }
   
-  ctx.restore();
-
-  // HP/Level Indicators for enemies
+  // HP bar for enemies
   if (!isHero) {
-     const hpH = 3;
-     ctx.fillStyle = "rgba(0,0,0,0.6)";
-     ctx.fillRect(sx - 12, sy - 55, 24, hpH);
-     ctx.fillStyle = "#ff3333";
-     ctx.fillRect(sx - 12, sy - 55, 18, hpH);
+    const hpH = 3;
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(sx - 12, sy - 45, 24, hpH);
+    ctx.fillStyle = "#ff3333";
+    ctx.fillRect(sx - 12, sy - 45, 18, hpH);
   }
+}
+
+function isValidCharacterSprite(img: HTMLImageElement, id: string): boolean {
+  const validChars = ["warrior", "mage", "rogue", "cleric"];
+  const validEnemies = ["skeleton"];
+  return validChars.includes(id) || validEnemies.includes(id);
+}
+
+function drawProceduralCharacter(
+  ctx: CanvasRenderingContext2D,
+  id: string,
+  x: number, y: number,
+  w: number, h: number,
+  isHero: boolean
+) {
+  const time = Date.now() * 0.003;
+  const breathe = Math.sin(time) * 2;
+  
+  const baseColor = isHero 
+    ? (CLASS_COLORS[id] || "#888")
+    : "#4a4a4a";
+  
+  const lighterColor = lighten(baseColor, 0.3);
+  const darkerColor = shadeColor(baseColor, -0.3);
+  
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 4);
+  ctx.clip();
+  
+  // Body/Armor base
+  const bodyGrad = ctx.createLinearGradient(x, y, x, y + h);
+  bodyGrad.addColorStop(0, lighterColor);
+  bodyGrad.addColorStop(0.3, baseColor);
+  bodyGrad.addColorStop(1, darkerColor);
+  ctx.fillStyle = bodyGrad;
+  ctx.fillRect(x, y, w, h);
+  
+  // Armor plates detail
+  ctx.fillStyle = shadeColor(baseColor, -0.2);
+  ctx.fillRect(x + 4, y + h * 0.3, w - 8, h * 0.15);
+  ctx.fillRect(x + 6, y + h * 0.55, w - 12, h * 0.12);
+  
+  // Cape (for heroes)
+  if (isHero) {
+    const capeWave = Math.sin(time * 2) * 3;
+    ctx.fillStyle = shadeColor(baseColor, -0.4);
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.2, y + h * 0.25);
+    ctx.lineTo(x - 4 + capeWave, y + h * 0.7);
+    ctx.lineTo(x + w * 0.3, y + h * 0.65);
+    ctx.closePath();
+    ctx.fill();
+  }
+  
+  // Helmet/Head
+  const headY = y + h * 0.1 + breathe * 0.5;
+  ctx.fillStyle = isHero ? "#666" : "#3a3a3a";
+  ctx.beginPath();
+  ctx.arc(x + w/2, headY, w * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Helmet visor/face
+  ctx.fillStyle = "#222";
+  ctx.fillRect(x + w * 0.35, headY - 2, w * 0.3, 6);
+  
+  // Eyes
+  ctx.fillStyle = isHero ? "#aaf" : "#f44";
+  ctx.fillRect(x + w * 0.38, headY, 3, 3);
+  ctx.fillRect(x + w * 0.55, headY, 3, 3);
+  
+  // Class-specific details
+  if (id === "warrior" || id === "skeleton") {
+    ctx.fillStyle = "#888";
+    ctx.fillRect(x + w * 0.1, y + h * 0.75, w * 0.2, h * 0.2);
+    ctx.fillRect(x + w * 0.7, y + h * 0.75, w * 0.2, h * 0.2);
+  } else if (id === "mage") {
+    ctx.fillStyle = "#8bf";
+    ctx.beginPath();
+    ctx.arc(x + w * 0.5, headY - w * 0.15, 4, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (id === "rogue") {
+    ctx.fillStyle = "#4a4";
+    ctx.fillRect(x + w * 0.7, y + h * 0.4, w * 0.15, h * 0.05);
+  } else if (id === "cleric") {
+    ctx.fillStyle = "#fc4";
+    ctx.beginPath();
+    ctx.arc(x + w * 0.5, y + h * 0.15, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Weapon hint
+  if (isHero) {
+    const weaponSwing = Math.sin(time * 1.5) * 0.1;
+    ctx.save();
+    ctx.translate(x + w * 0.85, y + h * 0.4);
+    ctx.rotate(weaponSwing - 0.3);
+    ctx.fillStyle = "#aaa";
+    ctx.fillRect(-2, -15, 4, 20);
+    ctx.restore();
+  }
+  
+  // Border
+  ctx.strokeStyle = isHero ? "rgba(255,220,100,0.6)" : "rgba(200,50,50,0.6)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  
+  ctx.restore();
 }
 
 const CLASS_COLORS: Record<string, string> = {
@@ -830,4 +867,8 @@ function lighten(hex: string, amount: number): string {
   const g = Math.min(255, ((n >> 8)  & 0xff) + Math.round(255 * amount));
   const b = Math.min(255, ((n)       & 0xff) + Math.round(255 * amount));
   return `rgb(${r},${g},${b})`;
+}
+
+function shadeColor(hex: string, amount: number): string {
+  return lighten(hex, amount);
 }
