@@ -12,7 +12,7 @@ interface Props {
 }
 
 // Sprite sheet config (matches IsometricCanvas.tsx)
-const SPRITE_SHEET_PATH = "/images/heroes_spritesheet.png"
+const SPRITE_SHEET_PATH = `${import.meta.env.BASE_URL}images/heroes_spritesheet.png`
 const SPRITE_FRAME_W = 64
 const SPRITE_FRAME_H = 64
 const SPRITE_COLS = 6

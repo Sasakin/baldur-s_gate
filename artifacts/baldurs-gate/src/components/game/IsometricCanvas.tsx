@@ -48,22 +48,16 @@ interface Props {
 }
 
 // ─── Asset Config ─────────────────────────────────────────────────────────
+const BASE = import.meta.env.BASE_URL;
 const ASSETS = {
-  // Textures - Using local isometric tiles
-  grass: "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_1.png",
-  stone: "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_30.png",
-  wood:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_36.png",
-  water: "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_2.png",
-  wall:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_69.png",
-  dirt:  "/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_28.png",
-  
-  // Enhanced spritesheet: 64x64px frames, 6 cols x 2 rows
-  // Row 0: warrior, mage, rogue, cleric
-  // Row 1: skeleton, skeleton_archer, skeleton_mage, boss
-  heroes: "/images/heroes_spritesheet.png",
-  
-  // Legacy spritesheet (fallback)
-  heroesLegacy: "/images/classic_heroes.png",
+  grass: `${BASE}images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_1.png`,
+  stone: `${BASE}images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_30.png`,
+  wood:  `${BASE}images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_36.png`,
+  water: `${BASE}images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_2.png`,
+  wall:  `${BASE}images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_69.png`,
+  dirt:  `${BASE}images/tiles/Isometric_Tiles_Pixel_Art/Blocks/blocks_28.png`,
+  heroes: `${BASE}images/heroes_spritesheet.png`,
+  heroesLegacy: `${BASE}images/classic_heroes.png`,
 };
 
 // Characters in sheet (left to right, top to bottom, 6 per row):

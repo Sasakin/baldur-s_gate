@@ -35,7 +35,7 @@ const ENEMY_ICON_SPRITES: Record<string, number> = {
   rogue:   5,
   cleric:  6,
 }
-const ICON_SHEET = "/images/icons/game_icons.png"
+const ICON_SHEET = `${import.meta.env.BASE_URL}images/icons/game_icons.png`
 const ICON_SIZE = 64
 
 const CLASS_COLORS: Record<string, string> = { warrior: "#4488FF", mage: "#AA44FF", rogue: "#44DD88", cleric: "#FFCC44" };
@@ -136,7 +136,7 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
       className="absolute inset-0 flex flex-col"
       style={{
         background: `
-          url('/images/combat-bg.png') center/cover no-repeat,
+          url('${import.meta.env.BASE_URL}images/combat-bg.png') center/cover no-repeat,
           radial-gradient(ellipse 120% 60% at 50% 100%, rgba(80,20,0,0.6) 0%, transparent 70%),
           radial-gradient(ellipse 80% 40% at 20% 50%, rgba(0,20,80,0.3) 0%, transparent 60%),
           radial-gradient(ellipse 80% 40% at 80% 50%, rgba(80,0,0,0.3) 0%, transparent 60%),

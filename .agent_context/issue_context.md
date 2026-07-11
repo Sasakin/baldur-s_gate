@@ -1,13 +1,12 @@
 # Task Assignment
 
-**Issue ID:** 8141f8ab-8692-40d6-b5cc-9559c5e74d6c
+**Issue ID:** 22b83c27-7b4c-47a1-8bed-6f36683f4429
 
-**Trigger:** Comment Reply
-**Triggering comment ID:** `94cc4f28-25c4-4d70-b14f-4e8791f56407`
+**Trigger:** New Assignment
 
 ## Quick Start
 
-Run `multica issue get 8141f8ab-8692-40d6-b5cc-9559c5e74d6c --output json` to fetch the full issue details.
+Run `multica issue get 22b83c27-7b4c-47a1-8bed-6f36683f4429 --output json` to fetch the full issue details.
 
 ## Agent Skills
 

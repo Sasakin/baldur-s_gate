@@ -70,7 +70,7 @@ export function MainMenu({ onNewGame, onLoadGame }: Props) {
         className="absolute inset-0"
         style={{
           background: `
-            url('/images/main-menu-bg.png') center/cover no-repeat,
+            url('${import.meta.env.BASE_URL}images/main-menu-bg.png') center/cover no-repeat,
             radial-gradient(ellipse 60% 50% at 50% 80%, rgba(120,30,10,0.45) 0%, transparent 70%),
             radial-gradient(ellipse 80% 60% at 20% 30%, rgba(10,20,60,0.35) 0%, transparent 60%),
             radial-gradient(ellipse 80% 60% at 80% 30%, rgba(60,10,10,0.35) 0%, transparent 60%),

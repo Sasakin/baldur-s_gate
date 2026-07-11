@@ -6,14 +6,13 @@ import { useAudio } from "../hooks/useAudio";
 import { MainMenu } from "../components/game/MainMenu";
 import { CharacterCreation } from "../components/game/CharacterCreation";
 import { IsometricCanvas } from "../components/game/IsometricCanvas";
-import { ThreeDGameView } from "../components/game/ThreeDGameView";
+import type { LocalGameState } from "../lib/types";
 import { HUD } from "../components/game/HUD";
 import { CombatPanel } from "../components/game/CombatPanel";
 import { CombatArena } from "../components/game/CombatArena";
 import { RewardScreen } from "../components/game/RewardScreen";
 import { InventoryQuestPanel } from "../components/game/InventoryQuestPanel";
 import { DPad } from "../components/game/DPad";
-import { LocalGameState } from "../lib/types";
 import { MAPS } from "../lib/game-data";
 
 const MAP_NAMES: Record<string, string> = {
@@ -31,8 +30,6 @@ export function GameRoot() {
     dismissReward,
     loadGame, saveGame, logMessage,
   } = useGameEngine();
-
-  const [viewMode, setViewMode] = React.useState<"2D" | "3D">("3D");
 
   const isMobile = useIsMobile();
   const { playMusic, stopMusic, playSFX } = useAudio();
@@ -82,26 +79,11 @@ export function GameRoot() {
       {/* ── EXPLORATION / REWARD: World View ─── */}
       {isInGame && !isInBattle && (
         <div className="absolute inset-0">
-          {viewMode === "3D" ? (
-            <ThreeDGameView
-              state={state}
-              onTileClick={isExploring ? requestMove : () => {}}
-            />
-          ) : (
-            <IsometricCanvas
-              stateRef={stateRef}
-              moveRef={moveRef}
-              onTileClick={isExploring ? requestMove : () => {}}
-            />
-          )}
-          
-          {/* View Mode Toggle Button */}
-          <button 
-            onClick={() => setViewMode(v => v === "2D" ? "3D" : "2D")}
-            className="absolute top-4 right-4 z-50 p-2 bg-black/60 border border-white/20 rounded-md text-[10px] text-white/60 hover:text-white hover:border-white/40 transition-all uppercase tracking-wider"
-          >
-            {viewMode === "3D" ? "Классика (2D)" : "Современный (3D)"}
-          </button>
+          <IsometricCanvas
+            stateRef={stateRef}
+            moveRef={moveRef}
+            onTileClick={isExploring ? requestMove : () => {}}
+          />
         </div>
       )}
 

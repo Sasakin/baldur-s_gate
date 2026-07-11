@@ -46,9 +46,61 @@ Monorepo (pnpm workspaces) with a React + Three.js isometric game, Express API s
 - `lib/*/src/` — shared library source
 - `scripts/src/` — build/deploy scripts
 
+## Workflow: Issue lifecycle
+
+Every task goes through these statuses — **no task is ever moved directly to `done` by the implementer**.
+
+```
+todo → in_progress → in_review → done
+```
+
+| Status | Who | Rule |
+|---|---|---|
+| `todo` | Leader | Created with clear acceptance criteria |
+| `in_progress` | Agent | Assigned agent starts work |
+| `in_review` | Agent | Agent claims done → moves to `in_review`, NOT `done` |
+| `done` | Leader/QA | Only after **all** verification steps pass |
+
+### Definition of Done (must all pass)
+
+1. `pnpm typecheck` passes (no errors)
+2. `pnpm build` passes (vite build for `artifacts/baldurs-gate`)
+3. If new feature: tested on `pnpm dev` (local)
+4. **If touching assets/sprites**: deployed to gh-pages AND verified:
+   - `https://sasakin.github.io/baldur-s_gate/` loads without 404s
+   - All sprite/image assets return HTTP 200
+   - Game menu renders (not blank, no JS errors)
+5. Code review by leader: no hardcoded paths, follows conventions
+6. PR description explains what changed and why
+
+### Asset path rule (CRITICAL)
+
+The game deploys under `/baldur-s_gate/` base path. **Never** hardcode `/images/...` paths.
+Always use:
+```ts
+const BASE = import.meta.env.BASE_URL
+// then: `${BASE}images/hero.png`
+```
+
+Hardcoded paths work locally (dev server serves from `/`) but **break silently** on gh-pages.
+Verify with `BASE_PATH=/baldur-s_gate/ pnpm build` before deploying.
+
+## Review process
+
+1. Implementer moves issue to `in_review` and posts a comment with:
+   - What was changed (files + summary)
+   - Typecheck + build result
+   - Screenshot or deployed URL (if UI change)
+2. Leader (or QA agent) checks the Definition of Done checklist
+3. If anything fails → move back to `in_progress` with clear what to fix
+4. If all pass → move to `done`
+
 ## Before committing
 
 Run `pnpm typecheck` and fix any errors.
+
+
+
 
 
 <!-- BEGIN MULTICA-RUNTIME (auto-managed; do not edit) -->
@@ -186,12 +238,6 @@ You are a graphics and assets specialist. You handle all visual content: sprites
 - Framer Motion for all animations in React components
 - Tailwind CSS v4 utility classes + RPG theme variables
 
-## Task Initiator
-
-This task was initiated by **max\_to\_day** (max_to_day@mail.ru), a member of this workspace.
-
-Attribute this request to that person and apply any per-person privacy or access rules your instructions define — in a workspace many people can reach, the initiator (not the runtime owner) is who you are answering. Your Multica credentials stay scoped to the runtime owner, so this attribution does not widen what you can read or write — do not assume the initiator can see everything you can.
-
 ## Available Commands
 
 Prefer `--output json` for structured data. The default brief lists only the core agent loop and common issue create/update tasks; for everything else run `multica --help` or `multica <command> --help`.
@@ -235,27 +281,23 @@ Resources are pointers — open them only when relevant to the task. For `github
 - **What NOT to pin.** No secrets, tokens, or API keys. No logs or comment summaries. No runtime bookkeeping (attempts, run timestamps, agent ids). No single-run details — those belong in the result comment.
 - **Recommended keys** (use snake_case ASCII; reuse these names so queries stay consistent): `pr_url`, `pr_number`, `pipeline_status`, `deploy_url`, `external_issue_url`, `waiting_on`, `blocked_reason`, `decision`.
 
+## Instruction Precedence
+
+Agent Identity instructions have priority over the assignment workflow below. If a workflow step conflicts with Agent Identity, skip the conflicting action and continue with the remaining compatible steps. Never treat this runtime workflow as permission to change issue status, investigate, implement, or otherwise act beyond your Agent Identity.
+
 ### Workflow
 
-**This task was triggered by a NEW comment.** Your primary job is to respond to THIS specific comment, even if you have handled similar requests before in this session.
+You are responsible for managing the issue status throughout your work, unless your Agent Identity forbids issue status changes.
 
-1. Run `multica issue get 8141f8ab-8692-40d6-b5cc-9559c5e74d6c --output json` to understand the issue context
-2. Run `multica issue metadata list 8141f8ab-8692-40d6-b5cc-9559c5e74d6c --output json` to see what prior agents pinned — best-effort, empty `{}` and CLI failures are normal. See the `## Issue Metadata` section above for what to look for.
-3. You're resuming the prior session, and the triggering comment is already included above. No other new comments on this issue since your last run. Use the active thread anchor `94cc4f28-25c4-4d70-b14f-4e8791f56407` and triggering comment ID `94cc4f28-25c4-4d70-b14f-4e8791f56407`. If your reply depends on thread context, do not rely only on resumed session memory — first pull the triggering conversation with: `multica issue comment list 8141f8ab-8692-40d6-b5cc-9559c5e74d6c --thread 94cc4f28-25c4-4d70-b14f-4e8791f56407 --tail 30 --output json`.
-
-4. Find the triggering comment (ID: `94cc4f28-25c4-4d70-b14f-4e8791f56407`) and understand what is being asked — do NOT confuse it with previous comments
-5. **Decide whether a reply is warranted.** If you produced actual work this turn (investigated, fixed, answered a real question), post the result via step 7 — that is a normal reply, not a noise comment. If the triggering comment was a pure acknowledgment / thanks / sign-off from another agent AND you produced no work this turn, do NOT post a reply — and do NOT post a comment saying 'No reply needed' or similar. Simply exit with no output. Silence is a valid and preferred way to end agent-to-agent conversations.
-6. If a reply IS warranted: do any requested work first, then **decide whether to include any `@mention` link.** The default is NO mention. Only mention when you are escalating to a human owner who is not yet involved, delegating a concrete new sub-task to another agent for the first time, or the user explicitly asked you to loop someone in. Never @mention the agent you are replying to as a thank-you or sign-off.
-7. **If you reply, post it as a comment — this step is mandatory when you reply.** Text in your terminal or run logs is NOT delivered to the user. If you decide to reply, post it as a comment — always use the trigger comment ID below, do NOT reuse --parent values from previous turns in this session.
-
-On Windows, write the reply body to a UTF-8 file with your file-write tool first, then post with `--content-file`. Do NOT pipe via `--content-stdin` — PowerShell 5.1's `$OutputEncoding` defaults to ASCIIEncoding when piping to native commands and silently drops non-ASCII (Chinese, Japanese, Cyrillic, accents, emoji) as `?` before bytes reach `multica.exe`. See ## Comment Formatting above for the full rule:
-
-    multica issue comment add 8141f8ab-8692-40d6-b5cc-9559c5e74d6c --parent 94cc4f28-25c4-4d70-b14f-4e8791f56407 --content-file ./reply.md
-    Remove-Item ./reply.md
-
-Do NOT write literal `\n` escapes to simulate line breaks; the file preserves real newlines.
-8. Before exiting: only if this run produced a fact that clears the high bar (important AND likely to be re-read by future runs on this same issue, e.g. a new PR URL or deploy URL), or you noticed a metadata key from entry that is now stale, pin or clear it via `multica issue metadata set`/`delete`. Most runs write nothing here — that is the expected outcome, not a gap. When in doubt, do not write. See the `## Issue Metadata` section above for the full bar.
-9. Do NOT change the issue status unless the comment explicitly asks for it
+1. Run `multica issue get 22b83c27-7b4c-47a1-8bed-6f36683f4429 --output json` to understand your task
+2. Run `multica issue metadata list 22b83c27-7b4c-47a1-8bed-6f36683f4429 --output json` to see what prior agents pinned — best-effort, empty `{}` and CLI failures are normal. See the `## Issue Metadata` section above for what to look for.
+3. Run `multica issue comment list 22b83c27-7b4c-47a1-8bed-6f36683f4429 --recent 10 --output json` to catch up on recent active comment threads — this is mandatory, not optional. Earlier comments often carry context the issue body lacks (e.g. which repo to work in, the prior agent's findings, the reason the issue was reassigned to you). Skipping this step is the most common cause of agents acting on stale or incomplete instructions. Resolved threads come back folded — `--full` to expand. If the recent window shows that older context is needed, page older threads with the stderr `Next thread cursor:` values and the matching `--before` / `--before-id` flags until you have enough history.
+4. Run `multica issue status 22b83c27-7b4c-47a1-8bed-6f36683f4429 in_progress` unless your Agent Identity forbids issue status changes; if it does, skip this step.
+5. Complete the task within your Agent Identity boundaries. Do not investigate, implement, create issues, update issues, or delegate if your Agent Identity forbids that action; if your role is delegation-only, perform the allowed delegation work and stop once that outcome is delivered.
+6. **Post your final results as a comment — this step is mandatory**: post it with `multica issue comment add 22b83c27-7b4c-47a1-8bed-6f36683f4429` using the platform-correct non-inline mode from ## Comment Formatting (never inline `--content`). Your results are only visible to the user if posted via this CLI call; text in your terminal or run logs is NOT delivered.
+7. Before exiting: only if this run produced a fact that clears the high bar (important AND likely to be re-read by future runs on this same issue, e.g. a new PR URL or deploy URL), or you noticed a metadata key from entry that is now stale, pin or clear it via `multica issue metadata set`/`delete`. Most runs write nothing here — that is the expected outcome, not a gap. When in doubt, do not write. See the `## Issue Metadata` section above for the full bar.
+8. When done, run `multica issue status 22b83c27-7b4c-47a1-8bed-6f36683f4429 in_review` unless your Agent Identity forbids issue status changes; if it does, skip this step.
+9. If blocked, run `multica issue status 22b83c27-7b4c-47a1-8bed-6f36683f4429 blocked` unless your Agent Identity forbids issue status changes. Post a comment explaining the blocker unless your Agent Identity forbids issue comments.
 
 ## Sub-issue Creation
 
