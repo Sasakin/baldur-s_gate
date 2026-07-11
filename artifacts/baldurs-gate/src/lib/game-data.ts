@@ -1,5 +1,5 @@
 import { CharacterStats } from "@workspace/api-client-react";
-import { MapData } from "./types";
+import { MapData, EncounterGrid, COMBAT_TILE } from "./types";
 
 export const STARTING_GOLD = 50;
 
@@ -180,6 +180,64 @@ function buildSanctumGrid(): number[][] {
   g[1][9] = 5;
 
   return g;
+}
+
+// ─── Combat grid generator ───────────────────────────────────────────────────
+// Generates an encounter grid based on the map and encounter position.
+// Extracts an 8×8 section centered on the encounter, preserving walls/obstacles.
+
+const COMBAT_GRID_SIZE = 8;
+
+export function generateEncounterGrid(mapGrid: number[][], centerX: number, centerY: number): EncounterGrid {
+  const half = Math.floor(COMBAT_GRID_SIZE / 2)
+  const rows = mapGrid.length
+  const cols = mapGrid[0]?.length ?? 0
+
+  const tiles: number[][] = []
+  for (let gy = 0; gy < COMBAT_GRID_SIZE; gy++) {
+    const row: number[] = []
+    for (let gx = 0; gx < COMBAT_GRID_SIZE; gx++) {
+      const my = centerY - half + gy
+      const mx = centerX - half + gx
+      // Inside map bounds — copy tile, otherwise void
+      if (my >= 0 && my < rows && mx >= 0 && mx < cols) {
+        const tile = mapGrid[my][mx]
+        // Map tile 3 (wall) → combat WALL, anything else walkable → FLOOR
+        // Map tiles 0 (void), 4 (water), 9 (tree) are impassable → WALL
+        if (tile === 0 || tile === 3 || tile === 4 || tile === 9) {
+          row.push(COMBAT_TILE.WALL)
+        } else {
+          row.push(COMBAT_TILE.FLOOR)
+        }
+      } else {
+        row.push(COMBAT_TILE.WALL)
+      }
+    }
+    tiles.push(row)
+  }
+
+  return { width: COMBAT_GRID_SIZE, height: COMBAT_GRID_SIZE, tiles }
+}
+
+// Default arena grid (flat open floor) used when no map is available
+export function generateDefaultArenaGrid(): EncounterGrid {
+  const size = 8
+  const tiles: number[][] = []
+  for (let y = 0; y < size; y++) {
+    const row: number[] = []
+    for (let x = 0; x < size; x++) {
+      // Place some pillars/walls for cover variety
+      if ((x === 3 || x === 4) && (y === 1 || y === 2)) {
+        row.push(COMBAT_TILE.WALL)
+      } else if ((x === 3 || x === 4) && (y === 5 || y === 6)) {
+        row.push(COMBAT_TILE.WALL)
+      } else {
+        row.push(COMBAT_TILE.FLOOR)
+      }
+    }
+    tiles.push(row)
+  }
+  return { width: size, height: size, tiles }
 }
 
 export const MAPS: Record<string, MapData> = {

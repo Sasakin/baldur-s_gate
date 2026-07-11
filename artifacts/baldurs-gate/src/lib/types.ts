@@ -16,6 +16,7 @@ export type AppState =
   | "VICTORY";
 
 export type CombatPhase =
+  | "MOVING"
   | "PICK_ACTION"
   | "PICK_TARGET"
   | "ANIMATING"
@@ -49,6 +50,10 @@ export interface CombatEntity extends CharacterStats {
   castingTurnsLeft?: number;
   // Flanking — set at combat resolve time
   isFlanked?: boolean;
+  // Grid movement (tactical combat)
+  x: number;
+  y: number;
+  speed: number; // cells per turn
 }
 
 export type ActionType =
@@ -81,6 +86,10 @@ export interface CombatState {
   screenShake: boolean;    // triggers on crit
   paused: boolean;         // spacebar pause
   visualEvents: CombatVisualEvent[];
+  /** Tactical grid for movement */
+  encounterGrid: EncounterGrid;
+  grid: string[][];
+  gridSize: { w: number; h: number };
 }
 
 export interface CombatVisualEvent {
@@ -238,8 +247,36 @@ export const CLASS_SKILLS: Record<string, [SkillDef, SkillDef]> = {
 // XP needed to reach each level (index = level)
 export const XP_THRESHOLDS = [0, 0, 100, 250, 500, 900, 1500, 2400, 3700, 5500, 8000];
 
+// Speed (cells per turn) per class
+export const CLASS_SPEED: Record<string, number> = {
+  warrior: 3,
+  rogue:   4,
+  mage:    2,
+  cleric:  3,
+};
+
 // Warrior gets extra attack per round at level 7+
 export function getAttackCount(entity: CombatEntity): number {
   if (entity.class === "warrior" && entity.level >= 7) return 2;
   return 1;
+}
+
+// ─── Encounter grid for tactical combat ────────────────────────────────────
+
+/** Tile type for the combat grid overlay */
+export const COMBAT_TILE = {
+  VOID: 0,
+  FLOOR: 1,
+  WALL: 3,
+} as const;
+
+/**
+ * An encounter-specific combat grid (a slice of the map grid or a generated arena).
+ * width/height define the grid dimensions.
+ */
+export interface EncounterGrid {
+  width: number
+  height: number
+  /** 2D array [row][col] — same tile semantics as MapData.grid */
+  tiles: number[][]
 }

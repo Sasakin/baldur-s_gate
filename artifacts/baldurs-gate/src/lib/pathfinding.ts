@@ -87,3 +87,41 @@ export function tilesInRange(
   }
   return seen;
 }
+
+/**
+ * Same as tilesInRange but also excludes cells occupied by other units.
+ * occupiedCells — a set of "x,y" keys representing cells with units on them.
+ */
+export function tilesInRangeBlocking(
+  grid: number[][],
+  from: Point,
+  maxDist: number,
+  occupiedCells: Set<string>,
+  ownKey: string
+): Set<string> {
+  const rows = grid.length;
+  const cols = grid[0]?.length ?? 0;
+  const seen = new Set<string>();
+  const queue: Array<{ p: Point; dist: number }> = [{ p: from, dist: 0 }];
+  seen.add(key(from.x, from.y));
+
+  while (queue.length > 0) {
+    const { p, dist } = queue.shift()!;
+    if (dist >= maxDist) continue;
+    for (const d of DIRS) {
+      const nx = p.x + d.x;
+      const ny = p.y + d.y;
+      if (nx < 0 || ny < 0 || ny >= rows || nx >= cols) continue;
+      const t = grid[ny][nx];
+      if (t === 0 || t === 3) continue;
+      const k = key(nx, ny);
+      // Blocked by another unit (can't walk through or stop on)
+      if (occupiedCells.has(k) && k !== ownKey) continue;
+      if (!seen.has(k)) {
+        seen.add(k);
+        queue.push({ p: { x: nx, y: ny }, dist: dist + 1 });
+      }
+    }
+  }
+  return seen;
+}

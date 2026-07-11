@@ -10,6 +10,7 @@ import type { LocalGameState } from "../lib/types";
 import { HUD } from "../components/game/HUD";
 import { CombatPanel } from "../components/game/CombatPanel";
 import { CombatArena } from "../components/game/CombatArena";
+import { CombatGrid } from "../components/game/CombatGrid";
 import { RewardScreen } from "../components/game/RewardScreen";
 import { InventoryQuestPanel } from "../components/game/InventoryQuestPanel";
 import { DPad } from "../components/game/DPad";
@@ -26,7 +27,7 @@ export function GameRoot() {
     state, stateRef, setState,
     moveRef,
     createHero, requestMove,
-    selectCombatAction, selectTarget,
+    selectCombatAction, selectTarget, selectMoveTarget,
     dismissReward,
     loadGame, saveGame, logMessage,
   } = useGameEngine();
@@ -87,15 +88,21 @@ export function GameRoot() {
         </div>
       )}
 
-      {/* ── COMBAT: Battle Arena (BattleManager / UnitSpawner pattern) ────── */}
+      {/* ── COMBAT: Battle Arena + Tactical Grid ────────────────────────── */}
       <AnimatePresence>
         {isInBattle && (
-          <CombatArena
-            state={state}
-            isPickingTarget={!!isPickingTarget}
-            selectedAction={selectedAction}
-            onSelectTarget={selectTarget}
-          />
+          <>
+            <CombatArena
+              state={state}
+              isPickingTarget={!!isPickingTarget}
+              selectedAction={selectedAction}
+              onSelectTarget={selectTarget}
+            />
+            <CombatGrid
+              state={state}
+              onSelectMoveTarget={selectMoveTarget}
+            />
+          </>
         )}
       </AnimatePresence>
 

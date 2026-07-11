@@ -15,6 +15,7 @@ import { LocalGameState, CombatEntity, FloatingText, StatusEffectType } from "..
 import { useIsMobile } from "../../hooks/use-mobile";
 import { useAudio } from "../../hooks/useAudio";
 import { EffectOverlay, EffectOverlayRef } from "./EffectOverlay";
+import CombatGrid from "./CombatGrid";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,17 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
     combat.party.find(p => p.id === currentTurnId)?.class === "cleric";
 
   const floatsFor = (id: string) => combat.floatingTexts.filter(f => f.entityId === id);
+
+  const allEntities = [...combat.party, ...combat.enemies];
+  const selectedTargetId = isPickingTarget ? combat.turnOrder[combat.currentTurnIndex] : null;
+
+  if (!combat.grid || !combat.gridSize) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
+        Combat grid not initialized
+      </div>
+    );
+  }
 
   return (
     <motion.div

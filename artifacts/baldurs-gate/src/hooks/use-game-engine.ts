@@ -2,9 +2,10 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   LocalGameState, CombatState, CombatEntity,
   ActionType, FloatingText, CLASS_SKILLS, XP_THRESHOLDS,
-  getAttackCount, LevelUpRecord, CombatVisualEvent,
+  getAttackCount, LevelUpRecord, CombatVisualEvent, CLASS_SPEED,
+  EncounterGrid, COMBAT_TILE,
 } from "../lib/types";
-import { MAPS, STARTING_GOLD, INITIAL_COMPANIONS, ENEMY_DB } from "../lib/game-data";
+import { MAPS, STARTING_GOLD, INITIAL_COMPANIONS, ENEMY_DB, generateEncounterGrid, generateDefaultArenaGrid } from "../lib/game-data";
 import { CharacterStats, CharacterStatsClass, CharacterStatsRace } from "@workspace/api-client-react";
 import { bfsPath, tilesInRange, Point } from "../lib/pathfinding";
 import {
@@ -36,7 +37,7 @@ const getInitialState = (): LocalGameState => ({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function toCombatEntity(char: CharacterStats, isEnemy: boolean): CombatEntity {
+function toCombatEntity(char: CharacterStats, isEnemy: boolean, x: number, y: number): CombatEntity {
   return {
     ...char,
     isEnemy,
@@ -44,6 +45,9 @@ function toCombatEntity(char: CharacterStats, isEnemy: boolean): CombatEntity {
     statusEffects: [],
     castingSkillId: null,
     castingTurnsLeft: 0,
+    x,
+    y,
+    speed: CLASS_SPEED[char.class] ?? 3,
   };
 }
 
@@ -203,7 +207,7 @@ export function useGameEngine() {
 
   // ── Combat: start ──────────────────────────────────────────────────────────
 
-  const spawnEnemy = (refId: string, uid: string): CombatEntity | null => {
+  const spawnEnemy = (refId: string, uid: string, x: number, y: number): CombatEntity | null => {
     const tpl = ENEMY_DB[refId];
     if (!tpl) return null;
     return {
@@ -215,20 +219,73 @@ export function useGameEngine() {
       castingSkillId: null,
       castingTurnsLeft: 0,
       alive: true,
+      x,
+      y,
+      speed: CLASS_SPEED[tpl.class] ?? 3,
     };
   };
 
-  const startCombatFromState = (s: LocalGameState, mapEnemy: { id: string; refId: string; group?: string[] }): LocalGameState => {
-    const leader = spawnEnemy(mapEnemy.refId, `combat_${mapEnemy.id}`);
+  const startCombatFromState = (s: LocalGameState, mapEnemy: { id: string; x: number; y: number; refId: string; group?: string[] }): LocalGameState => {
+    // Generate the encounter grid from the current map
+    const map = MAPS[s.currentMap]
+    const encounterGrid = map
+      ? generateEncounterGrid(map.grid, mapEnemy.x, mapEnemy.y)
+      : generateDefaultArenaGrid()
+
+    const { width, height, tiles } = encounterGrid
+
+    // Track occupied cells so we don't double-spawn
+    const occupied = new Set<string>()
+    const occKey = (x: number, y: number) => `${x},${y}`
+
+    // Find valid spawn positions (non-wall, non-occupied tiles)
+    const findSpawnPos = (startX: number, searchDir: -1 | 1): { x: number; y: number } | null => {
+      for (let y = 0; y < height; y++) {
+        let x = startX
+        while (x >= 0 && x < width) {
+          const k = occKey(x, y)
+          if (tiles[y][x] === COMBAT_TILE.FLOOR && !occupied.has(k)) {
+            occupied.add(k)
+            return { x, y }
+          }
+          x += searchDir
+        }
+      }
+      // Fallback: use any available position
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const k = occKey(x, y)
+          if (tiles[y][x] === COMBAT_TILE.FLOOR && !occupied.has(k)) {
+            occupied.add(k)
+            return { x, y }
+          }
+        }
+      }
+      return null
+    }
+
+    // Place party on left side (x=0 or x=1), enemies on right (x=width-1 or x=width-2)
+    const partyEntities = s.party.filter(p => p.alive).map((p, i) => {
+      const pos = findSpawnPos(0, 1) ?? { x: Math.min(i, width - 1), y: Math.min(i, height - 1) }
+      return toCombatEntity(p, false, pos.x, pos.y)
+    })
+
+    const enemyLeaderPos = findSpawnPos(width - 1, -1) ?? { x: width - 1, y: Math.floor(height / 2) }
+    if (!enemyLeaderPos) return s
+    const leader = spawnEnemy(mapEnemy.refId, `combat_${mapEnemy.id}`, enemyLeaderPos.x, enemyLeaderPos.y)
     if (!leader) return s;
 
-    const extras = (mapEnemy.group ?? []).map((refId, i) =>
-      spawnEnemy(refId, `combat_${mapEnemy.id}_g${i}`)
-    ).filter((e): e is CombatEntity => e !== null);
+    // For group enemies, place them at different positions on the right side
+    const extras = (mapEnemy.group ?? []).map((refId, i) => {
+      const pos = findSpawnPos(Math.max(0, width - 2 - i % 2), -1) ?? {
+        x: Math.max(0, width - 2 - i),
+        y: Math.min(i + 1, height - 1),
+      }
+      return spawnEnemy(refId, `combat_${mapEnemy.id}_g${i}`, pos.x, pos.y)
+    }).filter((e): e is CombatEntity => e !== null);
 
     const enemyEntities: CombatEntity[] = [leader, ...extras];
 
-    const partyEntities = s.party.filter(p => p.alive).map(p => toCombatEntity(p, false));
     const all = [...partyEntities, ...enemyEntities].sort((a, b) => b.initiative - a.initiative);
 
     const names = enemyEntities.map(e => e.name).join(", ");
@@ -236,6 +293,7 @@ export function useGameEngine() {
     const combat: CombatState = {
       enemies: enemyEntities,
       party: partyEntities,
+      encounterGrid,
       turnOrder: all.map(c => c.id),
       currentTurnIndex: 0,
       round: 1,
@@ -253,6 +311,8 @@ export function useGameEngine() {
     if (enemyEntities.some(e => e.id === firstId)) {
       setTimeout(() => triggerEnemyTurn(), 900);
       combat.phase = "ENEMY_TURN";
+    } else {
+      combat.phase = "MOVING";
     }
 
     return {
@@ -319,6 +379,47 @@ export function useGameEngine() {
       return s;
     });
   }, []);
+
+  // ── Movement (MOVING phase) ──────────────────────────────────────────────
+
+  const selectMoveTarget = useCallback((tx: number, ty: number) => {
+    setState(s => {
+      if (!s.combat || s.combat.phase !== "MOVING") return s
+      const c = s.combat
+      const actor = currentActor(c)
+      if (!actor || actor.isEnemy) return s
+
+      // Clicking same cell — skip movement, go to PICK_ACTION
+      if (actor.x === tx && actor.y === ty) {
+        return { ...s, combat: { ...c, phase: "PICK_ACTION", selectedAction: null } }
+      }
+
+      // BFS check: is the target reachable within speed?
+      const path = bfsPath(c.encounterGrid.tiles, { x: actor.x, y: actor.y }, { x: tx, y: ty }, actor.speed)
+      if (path.length === 0 || path.length > actor.speed) return s // not reachable
+
+      // Check target cell is not occupied by another alive unit
+      const allUnits = [...c.party, ...c.enemies]
+      const occupied = allUnits.some(u => u.id !== actor.id && u.alive && u.x === tx && u.y === ty)
+      if (occupied) return s
+
+      // Move the unit
+      const newParty = c.party.map(p =>
+        p.id === actor.id ? { ...p, x: tx, y: ty } : p
+      )
+
+      return {
+        ...s,
+        combat: {
+          ...c,
+          party: newParty,
+          phase: "PICK_ACTION",
+          selectedAction: null,
+          log: [...c.log, `${actor.name} перемещается на (${tx},${ty}).`],
+        },
+      }
+    })
+  }, [])
 
   // ── Resolve actions ────────────────────────────────────────────────────────
 
@@ -546,7 +647,7 @@ export function useGameEngine() {
 
         if (ticked.statusEffects.some(fx => fx.type === "stun")) {
           logLines.push(`${nextActor.name} оглушён и пропускает ход!`);
-          const stunS = { ...s, combat: { ...s.combat, party: nextParty, currentTurnIndex: nextIdx, round, phase: "PICK_ACTION" as const, selectedAction: null, floatingTexts: [...s.combat.floatingTexts, ...floats], log: [...s.combat.log, ...logLines] } };
+          const stunS = { ...s, combat: { ...s.combat, party: nextParty, currentTurnIndex: nextIdx, round, phase: "MOVING" as const, selectedAction: null, floatingTexts: [...s.combat.floatingTexts, ...floats], log: [...s.combat.log, ...logLines] } };
           setTimeout(() => setState(s2 => advanceAfterPlayerAction(s2)), 1000);
           return stunS;
         }
@@ -563,7 +664,7 @@ export function useGameEngine() {
         party: nextParty,
         currentTurnIndex: nextIdx,
         round,
-        phase: isEnemyTurn ? "ENEMY_TURN" : "PICK_ACTION",
+        phase: isEnemyTurn ? "ENEMY_TURN" : "MOVING",
         selectedAction: null,
         screenShake: false,
       },
@@ -664,7 +765,7 @@ export function useGameEngine() {
 
     const next: LocalGameState = {
       ...s,
-      combat: { ...s.combat, currentTurnIndex: nextIdx, round, phase: isEnemyNext ? "ENEMY_TURN" : "PICK_ACTION", selectedAction: null },
+      combat: { ...s.combat, currentTurnIndex: nextIdx, round, phase: isEnemyNext ? "ENEMY_TURN" : "MOVING", selectedAction: null },
     };
     if (isEnemyNext) setTimeout(() => triggerEnemyTurn(), 900);
     return next;
@@ -771,6 +872,7 @@ export function useGameEngine() {
     requestMove,
     selectCombatAction,
     selectTarget,
+    selectMoveTarget,
     dismissReward,
     logMessage,
     saveGame,
