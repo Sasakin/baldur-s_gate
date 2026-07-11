@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "developer",
+  "instructions": ["AGENTS.md"],
+  "agent": {
+    "developer": {
+      "description": "Autonomous game developer — implements features, fixes bugs, commits and opens PRs",
+      "mode": "all",
+      "model": "opencode-go/deepseek-v4-flash",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow"
+      }
+    }
+  }
+}
