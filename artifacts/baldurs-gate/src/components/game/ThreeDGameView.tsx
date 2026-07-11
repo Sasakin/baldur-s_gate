@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Stars, Float, SoftShadows, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
@@ -49,81 +49,67 @@ function Tile({ x, y, type, explored, visible, onClick }: {
   );
 }
 
-function Unit3D({ x, y, isHero, cls = "warrior", color = "gold" }: { x: number, y: number, isHero?: boolean, cls?: string, color?: string }) {
-  const group = useRef<THREE.Group>(null);
-  const targetPos = useRef(new THREE.Vector3(x, 0, y));
+const CLASS_COLORS: Record<string, string> = {
+  warrior: "#CC4444",
+  mage:    "#4488FF",
+  rogue:   "#44CC44",
+  cleric:  "#CCAA44",
+}
 
-  // Используем загруженные скины
-  const skinUrl = isHero 
-    ? (cls === "mage" ? "/images_user_upload/mag.jpg" : "/images_user_upload/warior.jpg")
-    : "/images_user_upload/skeleton.jpg"; // Скелет для врагов
-
-  const texture = useMemo(() => {
-    const loader = new THREE.TextureLoader();
-    return loader.load(skinUrl);
-  }, [skinUrl]);
+function Unit3D({ x, y, isHero, cls = "warrior" }: { x: number, y: number, isHero?: boolean, cls?: string }) {
+  const group = useRef<THREE.Group>(null)
+  const targetPos = useRef(new THREE.Vector3(x, 0, y))
+  const classColor = CLASS_COLORS[cls] || "#888"
 
   useEffect(() => {
-    targetPos.current.set(x, 0, y);
-  }, [x, y]);
+    targetPos.current.set(x, 0, y)
+  }, [x, y])
 
   useFrame((state, delta) => {
     if (group.current) {
-      group.current.position.lerp(targetPos.current, 0.15);
+      group.current.position.lerp(targetPos.current, 0.15)
       
-      const isMoving = group.current.position.distanceTo(targetPos.current) > 0.05;
-      const time = state.clock.getElapsedTime();
+      const isMoving = group.current.position.distanceTo(targetPos.current) > 0.05
+      const time = state.clock.getElapsedTime()
       
       if (isMoving) {
-        group.current.position.y = Math.abs(Math.sin(time * 12)) * 0.25 + 0.5;
-        const dx = targetPos.current.x - group.current.position.x;
-        const dz = targetPos.current.z - group.current.position.z;
+        group.current.position.y = Math.abs(Math.sin(time * 12)) * 0.25 + 0.5
+        const dx = targetPos.current.x - group.current.position.x
+        const dz = targetPos.current.z - group.current.position.z
         if (Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001) {
-          const angle = Math.atan2(dx, dz);
-          group.current.rotation.y = angle;
+          const angle = Math.atan2(dx, dz)
+          group.current.rotation.y = angle
         }
-        group.current.rotation.z = Math.sin(time * 12) * 0.1;
+        group.current.rotation.z = Math.sin(time * 12) * 0.1
       } else {
-        group.current.position.y = Math.sin(time * 2) * 0.05 + 0.5;
-        group.current.rotation.z = 0;
+        group.current.position.y = Math.sin(time * 2) * 0.05 + 0.5
+        group.current.rotation.z = 0
       }
     }
-  });
+  })
 
   return (
     <group ref={group} position={[x, 0.5, y]}>
-      {/* Front Face Sprite for Skin */}
-      <mesh position={[0, 0, 0.06]} castShadow>
-        <planeGeometry args={[0.6, 0.8]} />
-        <meshStandardMaterial map={texture} transparent alphaTest={0.5} />
-      </mesh>
-      
-      {/* Back Face Sprite */}
-      <mesh position={[0, 0, -0.06]} rotation={[0, Math.PI, 0]}>
-        <planeGeometry args={[0.6, 0.8]} />
-        <meshStandardMaterial map={texture} transparent alphaTest={0.5} />
-      </mesh>
-
-      {/* Body Core */}
+      {/* Class-colored body core */}
       <mesh castShadow receiveShadow>
         <boxGeometry args={[0.45, 0.75, 0.1]} />
-        <meshStandardMaterial color="#222" roughness={0.1} metalness={0.8} />
+        <meshStandardMaterial color={classColor} roughness={0.4} metalness={0.6} />
       </mesh>
 
       {/* Pedestal Base */}
       <mesh position={[0, -0.45, 0]} receiveShadow>
         <cylinderGeometry args={[0.35, 0.4, 0.1, 24]} />
-        <meshStandardMaterial color="#111" />
+        <meshStandardMaterial color="#222" />
       </mesh>
 
       {isHero && (
         <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.45, 0.5, 32]} />
-          <meshBasicMaterial color="#ffd700" transparent opacity={0.6} />
+          <meshBasicMaterial color={classColor} transparent opacity={0.6} />
         </mesh>
       )}
     </group>
-  );
+  )
 }
 
 function GameScene({ state, onTileClick }: Props) {
@@ -176,7 +162,6 @@ function GameScene({ state, onTileClick }: Props) {
         y={state.partyPosition.y} 
         isHero 
         cls={state.party[0]?.class}
-        color="#ffcc00"
       />
 
       {map.enemies.filter(e => !e.defeated).map((e, idx) => {
@@ -186,7 +171,7 @@ function GameScene({ state, onTileClick }: Props) {
          if (!visible) return null;
          
          return (
-           <Unit3D key={`enemy-${idx}`} x={e.x} y={e.y} color="#ff3333" />
+           <Unit3D key={`enemy-${idx}`} x={e.x} y={e.y} />
          );
       })}
 

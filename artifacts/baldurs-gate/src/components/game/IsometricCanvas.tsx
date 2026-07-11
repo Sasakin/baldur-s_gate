@@ -629,16 +629,14 @@ function drawUnit(
     ctx.imageSmoothingEnabled = false;
     drawSpriteSheet(ctx, sheet, charIdx, frame, drawX, drawY, drawScale);
   } else {
-    // Fallback procedural - smaller isometric-friendly size
-    const figW = isHero ? 24 : 20;
-    const figH = isHero ? 36 : 30;
-    const bob = Math.sin(time * 0.002) * 1.5;
-    const figY = sy - bob;
-    
-    ctx.save();
-    ctx.translate(sx, figY - figH + 4);
-    drawProceduralCharacter(ctx, id, -figW/2, 0, figW, figH, isHero);
-    ctx.restore();
+    // Fallback: simple colored placeholder while sprite loads
+    ctx.save()
+    ctx.fillStyle = isHero ? (CLASS_COLORS[id] || "#888") : "#4a4a4a"
+    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.005) * 0.3  // gentle pulse
+    ctx.beginPath()
+    ctx.arc(sx, sy - 10, isHero ? 12 : 10, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
   }
   
   // HP bar for enemies
@@ -649,114 +647,6 @@ function drawUnit(
     ctx.fillStyle = "#ff3333";
     ctx.fillRect(sx - 12, sy - 45, 18, hpH);
   }
-}
-
-function isValidCharacterSprite(img: HTMLImageElement, id: string): boolean {
-  const validChars = ["warrior", "mage", "rogue", "cleric"];
-  const validEnemies = ["skeleton"];
-  return validChars.includes(id) || validEnemies.includes(id);
-}
-
-function drawProceduralCharacter(
-  ctx: CanvasRenderingContext2D,
-  id: string,
-  x: number, y: number,
-  w: number, h: number,
-  isHero: boolean
-) {
-  const time = Date.now() * 0.003;
-  const breathe = Math.sin(time) * 2;
-  
-  const baseColor = isHero 
-    ? (CLASS_COLORS[id] || "#888")
-    : "#4a4a4a";
-  
-  const lighterColor = lighten(baseColor, 0.3);
-  const darkerColor = shadeColor(baseColor, -0.3);
-  
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 4);
-  ctx.clip();
-  
-  // Body/Armor base
-  const bodyGrad = ctx.createLinearGradient(x, y, x, y + h);
-  bodyGrad.addColorStop(0, lighterColor);
-  bodyGrad.addColorStop(0.3, baseColor);
-  bodyGrad.addColorStop(1, darkerColor);
-  ctx.fillStyle = bodyGrad;
-  ctx.fillRect(x, y, w, h);
-  
-  // Armor plates detail
-  ctx.fillStyle = shadeColor(baseColor, -0.2);
-  ctx.fillRect(x + 4, y + h * 0.3, w - 8, h * 0.15);
-  ctx.fillRect(x + 6, y + h * 0.55, w - 12, h * 0.12);
-  
-  // Cape (for heroes)
-  if (isHero) {
-    const capeWave = Math.sin(time * 2) * 3;
-    ctx.fillStyle = shadeColor(baseColor, -0.4);
-    ctx.beginPath();
-    ctx.moveTo(x + w * 0.2, y + h * 0.25);
-    ctx.lineTo(x - 4 + capeWave, y + h * 0.7);
-    ctx.lineTo(x + w * 0.3, y + h * 0.65);
-    ctx.closePath();
-    ctx.fill();
-  }
-  
-  // Helmet/Head
-  const headY = y + h * 0.1 + breathe * 0.5;
-  ctx.fillStyle = isHero ? "#666" : "#3a3a3a";
-  ctx.beginPath();
-  ctx.arc(x + w/2, headY, w * 0.25, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Helmet visor/face
-  ctx.fillStyle = "#222";
-  ctx.fillRect(x + w * 0.35, headY - 2, w * 0.3, 6);
-  
-  // Eyes
-  ctx.fillStyle = isHero ? "#aaf" : "#f44";
-  ctx.fillRect(x + w * 0.38, headY, 3, 3);
-  ctx.fillRect(x + w * 0.55, headY, 3, 3);
-  
-  // Class-specific details
-  if (id === "warrior" || id === "skeleton") {
-    ctx.fillStyle = "#888";
-    ctx.fillRect(x + w * 0.1, y + h * 0.75, w * 0.2, h * 0.2);
-    ctx.fillRect(x + w * 0.7, y + h * 0.75, w * 0.2, h * 0.2);
-  } else if (id === "mage") {
-    ctx.fillStyle = "#8bf";
-    ctx.beginPath();
-    ctx.arc(x + w * 0.5, headY - w * 0.15, 4, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (id === "rogue") {
-    ctx.fillStyle = "#4a4";
-    ctx.fillRect(x + w * 0.7, y + h * 0.4, w * 0.15, h * 0.05);
-  } else if (id === "cleric") {
-    ctx.fillStyle = "#fc4";
-    ctx.beginPath();
-    ctx.arc(x + w * 0.5, y + h * 0.15, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  
-  // Weapon hint
-  if (isHero) {
-    const weaponSwing = Math.sin(time * 1.5) * 0.1;
-    ctx.save();
-    ctx.translate(x + w * 0.85, y + h * 0.4);
-    ctx.rotate(weaponSwing - 0.3);
-    ctx.fillStyle = "#aaa";
-    ctx.fillRect(-2, -15, 4, 20);
-    ctx.restore();
-  }
-  
-  // Border
-  ctx.strokeStyle = isHero ? "rgba(255,220,100,0.6)" : "rgba(200,50,50,0.6)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, w, h);
-  
-  ctx.restore();
 }
 
 const CLASS_COLORS: Record<string, string> = {
@@ -861,14 +751,4 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-function lighten(hex: string, amount: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.min(255, ((n >> 16) & 0xff) + Math.round(255 * amount));
-  const g = Math.min(255, ((n >> 8)  & 0xff) + Math.round(255 * amount));
-  const b = Math.min(255, ((n)       & 0xff) + Math.round(255 * amount));
-  return `rgb(${r},${g},${b})`;
-}
 
-function shadeColor(hex: string, amount: number): string {
-  return lighten(hex, amount);
-}

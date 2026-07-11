@@ -18,12 +18,12 @@ import { EffectOverlay, EffectOverlayRef } from "./EffectOverlay";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const CLASS_ICONS: Record<string, string>  = { 
-  warrior: "/images_user_upload/warior.jpg", 
-  mage: "/images_user_upload/mag.jpg", 
-  rogue: "/images_user_upload/warior.jpg", 
-  cleric: "/images_user_upload/warior.jpg" 
-};
+const CLASS_ICONS: Record<string, string> = {
+  warrior: "⚔️",
+  mage:    "🔮",
+  rogue:   "🏹",
+  cleric:  "✝️",
+}
 const CLASS_COLORS: Record<string, string> = { warrior: "#4488FF", mage: "#AA44FF", rogue: "#44DD88", cleric: "#FFCC44" };
 
 const STATUS_ICONS: Record<StatusEffectType, string> = {
@@ -310,7 +310,7 @@ function UnitCard({ entity, side, isActive, isTargetable, floats, index, compact
   const isCasting = !!entity.castingSkillId;
 
   const color = isParty ? (CLASS_COLORS[entity.class] ?? "#4488FF") : "#CC3333";
-  const icon  = isParty ? CLASS_ICONS[entity.class] : "/images_user_upload/skeleton.jpg";
+  const icon = isParty ? CLASS_ICONS[entity.class] : "💀"
 
   return (
     <motion.div
