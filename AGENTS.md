@@ -85,15 +85,39 @@ const BASE = import.meta.env.BASE_URL
 Hardcoded paths work locally (dev server serves from `/`) but **break silently** on gh-pages.
 Verify with `BASE_PATH=/baldur-s_gate/ pnpm build` before deploying.
 
-## Review process
+## CI workflow
 
-1. Implementer moves issue to `in_review` and posts a comment with:
-   - What was changed (files + summary)
-   - Typecheck + build result
-   - Screenshot or deployed URL (if UI change)
-2. Leader (or QA agent) checks the Definition of Done checklist
-3. If anything fails → move back to `in_progress` with clear what to fix
-4. If all pass → move to `done`
+`.github/workflows/ci.yml` runs on every push to `main` and every PR:
+- `pnpm install --frozen-lockfile`
+- `pnpm typecheck`
+- `pnpm build` with `BASE_PATH=/baldur-s_gate/`
+
+## QA Agent gate
+
+When an issue reaches `in_review`, **@mention `QA Engineer`** to trigger automated verification:
+
+```
+[@QA Engineer](mention://agent/4fb1806e-d5de-4ef4-8f36-b0a4c72f9f14)
+```
+
+The QA agent will:
+1. Checkout, typecheck, build
+2. Deploy to gh-pages (`artifacts/baldurs-gate/dist/public/`)
+3. Verify URL + assets respond 200
+4. Post a pass/fail report
+5. Move to `done` if all OK, or back to `in_progress` with details
+
+## Definition of Done (must all pass)
+
+1. `pnpm typecheck` passes (no errors)
+2. `pnpm build` passes (vite build for `artifacts/baldurs-gate`)
+3. If new feature: tested on `pnpm dev` (local)
+4. **If touching assets/sprites**: deployed to gh-pages AND verified:
+   - `https://sasakin.github.io/baldur-s_gate/` loads without 404s
+   - All sprite/image assets return HTTP 200
+   - Game menu renders (not blank, no JS errors)
+5. Code review by leader: no hardcoded paths, follows conventions
+6. QA agent verified (triggered via @mention)
 
 ## Before committing
 
