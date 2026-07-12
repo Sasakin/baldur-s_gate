@@ -290,10 +290,22 @@ export function useGameEngine() {
 
     const names = enemyEntities.map(e => e.name).join(", ");
 
+    const gridSize = { w: encounterGrid.width, h: encounterGrid.height }
+    const grid: string[][] = Array.from({ length: gridSize.h }, () =>
+      Array(gridSize.w).fill(null)
+    )
+    all.forEach(e => {
+      if (e.x >= 0 && e.x < gridSize.w && e.y >= 0 && e.y < gridSize.h) {
+        grid[e.y][e.x] = e.id
+      }
+    })
+
     const combat: CombatState = {
       enemies: enemyEntities,
       party: partyEntities,
       encounterGrid,
+      grid,
+      gridSize,
       turnOrder: all.map(c => c.id),
       currentTurnIndex: 0,
       round: 1,
