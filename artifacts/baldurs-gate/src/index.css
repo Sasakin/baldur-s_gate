@@ -50,7 +50,7 @@
 
 .parchment-bg {
   background-color: var(--color-rpg-parchment);
-  background-image: url('/images/parchment.png');
+  background-image: url('/baldur-s_gate/images/parchment.png');
   background-size: cover;
   background-blend-mode: multiply;
   color: var(--color-rpg-dark);
