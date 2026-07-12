@@ -68,8 +68,8 @@ const SPRITE_MAP: Record<string, number> = {
   mage: 1,
   rogue: 2,
   cleric: 3,
+  skeleton: 4,  // Unique index for skeleton
   // Enemy types
-  skeleton: 6,
   goblin: 6,
   zombie: 6,
   ghost: 6,
