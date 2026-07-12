@@ -1,57 +1,46 @@
-import React from 'react';
-import { CombatEntity } from '../../lib/types';
+import React from 'react'
+import { CombatEntity, LocalGameState } from '../../lib/types'
 
 interface CombatGridProps {
-  grid: string[][];
-  gridSize: { w: number; h: number };
-  entities: CombatEntity[];
-  onUnitClick: (entityId: string) => void;
-  selectedTargetId: string | null;
+  state: LocalGameState
+  onSelectMoveTarget: (tx: number, ty: number) => void
 }
 
-const CombatGrid: React.FC<CombatGridProps> = ({
-  grid,
-  gridSize,
-  entities,
-  onUnitClick,
-  selectedTargetId,
+export const CombatGrid: React.FC<CombatGridProps> = ({
+  state,
+  onSelectMoveTarget,
 }) => {
-  // Calculate tile dimensions
-  const tileWidth = 80;
-  const tileHeight = 40;
-  
-  // Calculate grid dimensions
-  const gridWidth = gridSize.w * tileWidth;
-  const gridHeight = gridSize.h * tileHeight;
-  
-  // Create a map of entity positions for quick lookup
-  const entityMap = new Map<string, CombatEntity>();
-  entities.forEach(entity => {
-    entityMap.set(entity.id, entity);
-  });
-  
+  const combat = state.combat
+  if (!combat) return null
+
+  const { grid, gridSize, party, enemies } = combat
+  const tileWidth = 80
+  const tileHeight = 40
+  const gridWidth = gridSize.w * tileWidth
+  const gridHeight = gridSize.h * tileHeight
+  const allEntities = [...party, ...enemies]
+  const entityMap = new Map<string, CombatEntity>()
+  allEntities.forEach(entity => {
+    entityMap.set(entity.id, entity)
+  })
+
   return (
     <div
       className="relative"
       style={{ width: gridWidth, height: gridHeight }}
     >
-      {/* Render grid tiles */}
-      {grid.map((row, y) => (
+      {grid.map((row, y) =>
         row.map((cell, x) => {
-          const isEven = (x + y) % 2 === 0;
-          const bgColor = isEven ? '#2a2a1a' : '#1a1a0a';
-          
-          // Check if there's an entity at this position
-          const entityId = grid[y][x];
-          const entity = entityId ? entityMap.get(entityId) : null;
-          
+          const isEven = (x + y) % 2 === 0
+          const bgColor = isEven ? '#2a2a1a' : '#1a1a0a'
+          const entityId = grid[y][x]
+          const entity = entityId ? entityMap.get(entityId) : null
+
           return (
             <div
-              key={`
-${x}-
-${y}`}
+              key={`${x}-${y}`}
               className={`absolute transition-all duration-200 ${entity ? 'cursor-pointer hover:opacity-90' : ''}`}
-              style={{ 
+              style={{
                 left: x * tileWidth,
                 top: y * tileHeight,
                 width: tileWidth,
@@ -59,13 +48,10 @@ ${y}`}
                 clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
                 backgroundColor: bgColor,
                 opacity: entity ? 0.8 : 0.4,
-                transform: 'skewX(-30deg)',
-                transformOrigin: 'top left',
-                border: selectedTargetId === entityId ? '2px solid #ff0000' : 'none',
+                border: 'none',
               }}
-              onClick={() => entity && onUnitClick(entity.id)}
+              onClick={() => onSelectMoveTarget(x, y)}
             >
-              {/* Render entity if present */}
               {entity && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <img
@@ -74,7 +60,6 @@ ${y}`}
                     className="w-8 h-8"
                     style={{ imageRendering: 'pixelated' }}
                   />
-                  {/* HP bar */}
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800">
                     <div
                       className="h-full bg-green-500"
@@ -84,19 +69,18 @@ ${y}`}
                 </div>
               )}
             </div>
-          );
+          )
         })
-      ))}
+      )}
     </div>
-  );
-};
+  )
+}
 
-// Tooltip component for unit info
 const UnitTooltip: React.FC<{ entity: CombatEntity }> = ({ entity }) => (
   <div className="absolute z-10 p-2 bg-gray-800 text-white rounded shadow-lg">
     <div className="font-bold">{entity.name}</div>
     <div>HP: {entity.hp}/{entity.maxHp}</div>
   </div>
-);
+)
 
-export default CombatGrid;
+export default CombatGrid
