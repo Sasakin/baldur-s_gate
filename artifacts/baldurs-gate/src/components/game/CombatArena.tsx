@@ -16,6 +16,7 @@ import { useIsMobile } from "../../hooks/use-mobile";
 import { useAudio } from "../../hooks/useAudio";
 import { EffectOverlay, EffectOverlayRef } from "./EffectOverlay";
 import CombatGrid from "./CombatGrid";
+import ParallaxBackground from "./ParallaxBackground";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -145,24 +146,18 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="absolute inset-0 flex flex-col"
-      style={{
-        background: `
-          url('${import.meta.env.BASE_URL}images/combat-bg.png') center/cover no-repeat,
-          radial-gradient(ellipse 120% 60% at 50% 100%, rgba(80,20,0,0.6) 0%, transparent 70%),
-          radial-gradient(ellipse 80% 40% at 20% 50%, rgba(0,20,80,0.3) 0%, transparent 60%),
-          radial-gradient(ellipse 80% 40% at 80% 50%, rgba(80,0,0,0.3) 0%, transparent 60%),
-          linear-gradient(180deg, #0a0a12 0%, #12080c 40%, #0e0e18 100%)
-        `,
-        backgroundBlendMode: "overlay, normal, normal, normal, normal",
-      }}
+      className="absolute inset-0 flex flex-col bg-[#0a0a12]"
     >
+      {/* ── Parallax background layers ───────────────────────────────────── */}
+      <ParallaxBackground />
+
       {/* ── Ground plane ──────────────────────────────────────────────────── */}
       <div
         className={`absolute ${isMobile ? "bottom-36" : "bottom-48"} inset-x-0 h-32 pointer-events-none`}
         style={{
           background: "linear-gradient(0deg, rgba(40,25,15,0.7) 0%, transparent 100%)",
           borderTop: "1px solid rgba(180,140,60,0.15)",
+          zIndex: 6,
         }}
       />
 
