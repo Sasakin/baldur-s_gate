@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useGameEngine } from "../hooks/use-game-engine";
 import { useIsMobile } from "../hooks/use-mobile";
@@ -33,6 +34,9 @@ export function GameRoot() {
   } = useGameEngine();
 
   const isMobile = useIsMobile();
+
+  // ── Targeting UI state (hover tracker for CombatGrid & CombatPanel) ──────
+  const [hoveredTargetId, setHoveredTargetId] = useState<string | null>(null)
   const { playMusic, stopMusic, playSFX } = useAudio();
 
   // Music management
@@ -101,6 +105,9 @@ export function GameRoot() {
             <CombatGrid
               state={state}
               onSelectMoveTarget={selectMoveTarget}
+              onSelectTarget={isPickingTarget ? selectTarget : undefined}
+              hoveredTargetId={hoveredTargetId}
+              onHoverTarget={setHoveredTargetId}
             />
           </>
         )}
@@ -144,6 +151,7 @@ export function GameRoot() {
           state={state}
           onSelectAction={selectCombatAction}
           onSelectTarget={selectTarget}
+          hoveredTargetId={hoveredTargetId}
         />
       )}
 

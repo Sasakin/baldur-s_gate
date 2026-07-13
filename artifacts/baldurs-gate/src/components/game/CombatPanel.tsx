@@ -7,15 +7,17 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LocalGameState, ActionType, CLASS_SKILLS, StatusEffectType,
-  getAttackCount,
+  getAttackCount, CombatEntity,
 } from "../../lib/types";
 import { useIsMobile } from "../../hooks/use-mobile";
 import { useAudio } from "../../hooks/useAudio";
+import { statBonus, getAC, getFlankingBonus } from "../../lib/combat-rules";
 
 interface Props {
-  state:          LocalGameState;
-  onSelectAction: (action: ActionType) => void;
-  onSelectTarget: (targetId: string) => void;
+  state:           LocalGameState;
+  onSelectAction:  (action: ActionType) => void;
+  onSelectTarget:  (targetId: string) => void;
+  hoveredTargetId?: string | null;
 }
 
 const CLASS_COLORS: Record<string, string> = {
@@ -25,7 +27,7 @@ const CLASS_COLORS: Record<string, string> = {
   cleric:  "#FFCC44",
 };
 
-export function CombatPanel({ state, onSelectAction, onSelectTarget }: Props) {
+export function CombatPanel({ state, onSelectAction, onSelectTarget, hoveredTargetId }: Props) {
   const combat    = state.combat;
   const logRef    = useRef<HTMLDivElement>(null);
   const isMobile  = useIsMobile();
@@ -191,9 +193,11 @@ export function CombatPanel({ state, onSelectAction, onSelectTarget }: Props) {
               />
             </div>
           ) : isPickingTarget ? (
-             <div className="px-4 py-1 text-red-500 font-bold text-[9px] animate-pulse tracking-widest uppercase">
-               TARGET...
-             </div>
+             <TargetInfoPanel
+               combat={combat}
+               hoveredTargetId={hoveredTargetId}
+               activeChar={activeChar}
+             />
           ) : combat.phase === "ENEMY_TURN" ? (
              <div className="px-4 py-1 text-white/30 text-[8px] uppercase font-bold tracking-widest">
                ENEMY...
@@ -253,6 +257,89 @@ export function CombatPanel({ state, onSelectAction, onSelectTarget }: Props) {
       </div>
     </div>
   );
+}
+
+// ── Target Info Panel ─────────────────────────────────────────────────────────
+
+function TargetInfoPanel({
+  combat,
+  hoveredTargetId,
+  activeChar,
+}: {
+  combat: import("../../lib/types").CombatState
+  hoveredTargetId?: string | null
+  activeChar?: CombatEntity | null
+}) {
+  const allEntities = [...combat.enemies, ...combat.party]
+  const targetEntity = hoveredTargetId ? allEntities.find(e => e.id === hoveredTargetId) : null
+  const aliveAllyCount = combat.party.filter(p => p.alive).length
+
+  // Compute distance & hit chance if we have both actor and target
+  let distance: number | null = null
+  let hitChance: number | null = null
+  if (activeChar && targetEntity && targetEntity.alive) {
+    distance = Math.abs(activeChar.x - targetEntity.x) + Math.abs(activeChar.y - targetEntity.y)
+    hitChance = calcHitChance(activeChar, targetEntity, aliveAllyCount)
+  }
+
+  const hitColor =
+    hitChance !== null
+      ? hitChance >= 75 ? '#22c55e'
+        : hitChance >= 45 ? '#eab308'
+          : '#ef4444'
+      : '#aaaaaa'
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 min-w-[180px]">
+      {/* Crosshair icon */}
+      <div className="text-lg animate-pulse drop-shadow-[0_0_6px_rgba(255,0,0,0.6)]">🎯</div>
+
+      <div className="flex flex-col gap-0.5">
+        {targetEntity ? (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="text-red-400 font-bold text-[10px] uppercase tracking-wider truncate max-w-[100px]">
+                {targetEntity.name}
+              </span>
+              {targetEntity.isEnemy && (
+                <span className="text-[8px] text-red-600/80 font-bold">ENEMY</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-[9px]">
+              <span className="text-gray-400">
+                📏 <span className="text-white/80 font-mono">{distance ?? '—'}</span> кл.
+              </span>
+              <span className="text-gray-400">
+                🎲 <span className="font-mono font-bold" style={{ color: hitColor }}>
+                  {hitChance !== null ? `${hitChance}%` : '—%'}
+                </span>
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="text-[10px] text-red-500 font-bold tracking-widest uppercase animate-pulse flex items-center gap-1">
+            <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+            Выберите цель
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Hit chance calculation ─────────────────────────────────────────────────────
+
+function calcHitChance(actor: CombatEntity, target: CombatEntity, allyCount: number): number {
+  const flanking = !actor.isEnemy ? getFlankingBonus(allyCount) : 0
+  const bonus = statBonus(actor) + actor.level + flanking
+  const ac = getAC(target)
+
+  const minRollRequired = Math.max(2, ac - bonus)
+  if (minRollRequired >= 20) return 5
+  if (minRollRequired <= 2) return 95
+
+  const hittingRolls = 20 - minRollRequired + 1
+  return Math.round((hittingRolls / 20) * 100)
 }
 
 // ── Action button ─────────────────────────────────────────────────────────────

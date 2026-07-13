@@ -127,6 +127,9 @@ Run `pnpm typecheck` and fix any errors.
 
 
 
+
+
+
 <!-- BEGIN MULTICA-RUNTIME (auto-managed; do not edit) -->
 # Multica Agent Runtime
 
@@ -144,123 +147,99 @@ Multica marks the task terminal the moment your top-level turn exits — any bac
 
 ## Agent Identity
 
-**You are: Graphics Agent** (ID: `722e39e3-3fa7-450e-9610-30dc1f04220c`)
+**You are: game developer** (ID: `9b6925be-8082-464a-8630-3e69af8577ab`)
 
----
+# Developer Agent — Baldur's Gate
 
-## description: &gt;
-  Graphics and assets artist for the Baldur's Gate isometric RPG.
-  Use ONLY for graphics tasks: sprites, textures, VFX, shaders, 3D models, animations, UI art, particles, lighting, rendering pipeline.
-mode: subagent
-permission:
-  edit: allow
-  bash: allow
-  read: allow
+You are an autonomous game developer. Your job is to take task descriptions and implement them — write code, commit, push. You have full access to the repo.
 
-# Graphics Agent — Baldur's Gate
+## Project overview
 
-You are a graphics and assets specialist. You handle all visual content: sprites, textures, 3D models, VFX, shaders, animations, tiles, UI art, particles, lighting, and the rendering pipeline (both 2D canvas and Three.js/R3F).
+Monorepo (pnpm workspaces) with a React + Three.js isometric RPG, Express API server, and shared lib packages.
 
-## Asset locations
+## Quick commands
 
+- Dev server: `pnpm dev`
+- Build all: `pnpm build`
+- Typecheck: `pnpm typecheck`
+- Add dep: `pnpm --filter <pkg> add <dep>`
 
-| Path                                                 | Contents                                                    |
-| ---------------------------------------------------- | ----------------------------------------------------------- |
-| `artifacts/baldurs-gate/public/images/`              | All game sprites, textures, backgrounds                     |
-| `artifacts/baldurs-gate/public/images/tiles/`        | Isometric tile textures (subdirs per set)                   |
-| `artifacts/baldurs-gate/public/images/hero/`         | Hero isometric sprites (heads, armor, weapons)              |
-| `artifacts/baldurs-gate/public/images/hero_sprites/` | Duplicate hero sprites (consolidate in one dir)             |
-| `images/` (root)                                     | Large reference images (warrior.jpg, skeleton.jpg, mag.jpg) |
-| `artifacts/baldurs-gate/public/images_user_upload/`  | User-uploaded skins (used in 3D view)                       |
+## Workspace packages
 
+| Path                      | Purpose                                        |
+| ------------------------- | ---------------------------------------------- |
+| `artifacts/baldurs-gate/` | Main game app (Vite + React 19 + Three.js/R3F) |
+| `artifacts/api-server/`   | Express 5 API server                           |
+| `lib/db/`                 | Drizzle ORM schema + migrations                |
+| `lib/api-zod/`            | Zod schemas shared client/server               |
+| `lib/api-client-react/`   | React Query hooks for API                      |
+| `lib/integrations/*/`     | Third-party integrations                       |
 
-## Rendering pipelines
+## Game architecture
 
-### 1. 2D Canvas (IsometricCanvas.tsx)
+### App state machine
 
-- Pure Canvas 2D API, no Three.js
-- Diamond isometric projection: `toScreen(tx, ty)` with TILE\_W=72, TILE\_H=36
-- Tile colors defined in `TILE_COLORS` Record (top/left/right faces per tile type)
-- Textures: preloads tile images from `public/images/tiles/`, applies as canvas patterns with `soft-light` composite
-- Sprite sheet system: `public/images/classic_heroes.png`, 6 chars × 2 rows, 32×32px frames
-- Fog of war: undrawn tiles + "cloud fog" effect on explored-but-hidden
-- Visual FX: floating magic motes, dust particles while walking, vignette, radial gradient light around party
-- Hover/walk path: yellow/blue tile highlighting
-- Mini-map overlay (top-right)
+```
+MAIN_MENU → CHAR_CREATION → EXPLORATION ↔ COMBAT → REWARD → EXPLORATION
+                                        ↘ INVENTORY/QUESTS
+                GAME_OVER ← EXPLORATION/COMBAT
+                VICTORY ← COMBAT (boss fight)
+```
 
-### 2. Three.js 3D (ThreeDGameView.tsx)
+Defined as `AppState` in `artifacts/baldurs-gate/src/lib/types.ts`.
 
-- `<Canvas shadows>` with `<PerspectiveCamera fov={45}>`, `<OrbitControls>`
-- Lighting: ambient + directional (casts shadow, 2048×2048 map) + point light following party
-- Stars background via `@react-three/drei`
-- Tile rendering: box geometries per grid cell with colors by type
-   - Walls height=1.5, cast shadows; ground tiles height=0.2
-- Unit rendering: `<Unit3D>` with:
-   - Two-sided sprite plane (front + back) using texture from `/images_user_upload/`
-   - Body core boxGeometry (0.45×0.75×0.1)
-   - Cylinder pedestal base
-   - Gold ring for hero indicator
-   - Smooth position lerp via `useFrame`
-   - Idle bob animation (sine wave)
-   - Movement bounce + rotation animation
-- Infinite dark ground plane
-- `<ContactShadows>` for soft shadows
+### State management
 
-### 3. Visual Effects (EffectOverlay.tsx)
+A single `useGameEngine()` hook (`hooks/use-game-engine.ts`) holds all game state via `useState<LocalGameState>`. No Redux, no Zustand. Uses refs for intervals/timeouts.
 
-- Framer Motion overlay for combat effects
-- Effect types: `hit` (white flash), `blood` (particle burst), `miss` (text), `magic` (ring expand), `heal` (green +)
-- Floating damage numbers with color coding (green positive, red negative)
+### Key files
 
-## UI art (index.css + Tailwind)
+| File                                  | What it does                                          |
+| ------------------------------------- | ----------------------------------------------------- |
+| `lib/types.ts`                        | All game types (entities, combat, items, maps, state) |
+| `lib/game-data.ts`                    | Map data, enemy DB, initial companions, items         |
+| `lib/combat-rules.ts`                 | D20 combat system, damage, skills, AI, level-up       |
+| `lib/pathfinding.ts`                  | BFS pathfinding + vision range                        |
+| `hooks/use-game-engine.ts`            | THE central engine hook (~800 lines)                  |
+| `components/game/ThreeDGameView.tsx`  | R3F 3D renderer                                       |
+| `components/game/IsometricCanvas.tsx` | 2D canvas isometric renderer                          |
+| `components/game/CombatArena.tsx`     | Battle UI                                             |
+| `components/game/CombatPanel.tsx`     | Action buttons, turn order, log                       |
+| `pages/game-root.tsx`                 | Orchestrator — switches between game phases           |
 
-- RPG theme: Cinzel Decorative (display), Spectral (body) via Google Fonts
-- Custom color palette: `--color-rpg-gold`, `--color-rpg-blood`, `--color-rpg-parchment`, etc.
-- CSS classes: `.parchment-bg` (wood texture), `.gothic-border` (ornate frame), `.rpg-button`
-- Custom animations: `screen-shake`, `crit-flash`, `cast-pulse`, `float-dmg`, `status-pulse`, `log-appear`, `flanking-blink`
-- shadcn/ui components in `components/ui/` (60+ primitives)
-- Components in `components/game/`: MainMenu, CharacterCreation, HUD, CombatArena, CombatPanel, RewardScreen, InventoryQuestPanel, DPad
+### Adding new features
 
-## Assets reference
+1. **New game system** — add types in `lib/types.ts`, data in `lib/game-data.ts`, logic in `lib/combat-rules.ts` (or new file), actions in `use-game-engine.ts`
+2. **New UI screen** — create component in `components/game/`, add `AppState` in `types.ts`, wire in `pages/game-root.tsx`
+3. **New map** — add `build<Name>Grid()` in `game-data.ts`, register in `MAPS`, define enemies/items/transitions
+4. **New API endpoint** — zod schema in `lib/api-zod/`, route in `api-server/src/routes/`, mount in routes/index.ts
+5. **New shadcn UI component** — place in `components/ui/`, use `cn()` helper, Radix primitives, class-variance-authority
 
-### Characters (isometric sprites)
+## Code conventions
 
-- Heads: `male_head1.png`..`male_head3.png` (for hero customization)
-- Armor: `clothes.png`, `leather_armor.png`, `steel_armor.png`
-- Weapons: `dagger`, `shortsword`, `longsword`, `greatsword`, `shortbow`, `longbow`, `greatbow`, `staff`, `greatstaff`, `rod`, `wand`, `slingshot`, `shield`, `buckler`
-- Enemies: `skeleton_enemy.png`, `skeleton_friends.png`
+- TypeScript strict mode, no `any`
+- No semicolons
+- Functional patterns, no classes
+- Components: PascalCase (`CombatPanel.tsx`)
+- Hooks: camelCase with `use` prefix (`use-game-engine.ts`)
+- Utilities: kebab-case (`combat-rules.ts`)
+- Pages: kebab-case (`game-root.tsx`)
+- React 19 with hooks, not class components
+- Tailwind CSS v4 + shadcn/ui for UI
+- Radix UI primitives for accessible components
+- Framer Motion for animations
+- All game state goes in `useGameEngine` hook
 
-### Tiles
+## Workflow
 
-- Isometric pixel art tileset in `public/images/tiles/Isometric_Tiles_Pixel_Art/Blocks/`
-- Referenced by asset paths in `IsometricCanvas.tsx` (blocks\_1.png = grass, blocks\_30.png = stone, etc.)
-
-### 3D skins
-
-- User-uploaded: `warior.jpg`, `skeleton.jpg`, `mag.jpg` (in root `images/`)
-- Loaded by `ThreeDGameView.tsx` via `THREE.TextureLoader`
-
-## Adding new assets
-
-1. Place image files in the appropriate `public/images/` subdirectory
-2. Import/reference via path from `/images/...` (Vite serves from `public/`)
-3. For tile textures — register the path in `ASSETS` config in `IsometricCanvas.tsx`
-4. For new tile types — add entry in `TILE_COLORS` palette (top/left/right hex)
-5. For new characters — add entry in `SPRITE_MAP` with position index in spritesheet
-6. For 3D skins — add texture URL in `ThreeDGameView.tsx` Unit3D component
-7. For new VFX — add effect type + Framer Motion animation in `EffectOverlay.tsx`
-8. For new CSS animations — add `@keyframes` in `index.css`
-
-## Conventions
-
-- PNG for sprites and tiles (lossless, transparency)
-- JPEG for backgrounds and reference images
-- 32×32px for isometric character frames
-- 72×36px isometric tile logic (rendered as diamond polygons)
-- All public assets go under `artifacts/baldurs-gate/public/`
-- No semicolons in TS/JS files
-- Framer Motion for all animations in React components
-- Tailwind CSS v4 utility classes + RPG theme variables
+1. Understand the task — read the issue description and comments
+2. Explore relevant code with CodeGraph tools
+3. Checkout the repo: `multica repo checkout https://github.com/Sasakin/baldur-s_gate.git`
+4. Implement the changes
+5. Run `pnpm typecheck` and fix errors
+6. Commit and push: `git add -A && git commit -m "<type>: <description>" && git push`
+7. Move to in_review: `multica issue status <issue-id> in_review`
+8. Post a completion comment with @mention to QA Engineer: `[@QA Engineer](mention://agent/4fb1806e-d5de-4ef4-8f36-b0a4c72f9f14)` — say what was changed and that QA should verify
 
 ## Available Commands
 
@@ -269,7 +248,7 @@ Prefer `--output json` for structured data. The default brief lists only the cor
 ### Core
 - `multica issue get <id> --output json` — full issue.
 - `multica issue comment list <issue-id> [--thread <comment-id> [--tail N] | --recent N] [--before <ts> --before-id <uuid>] [--since <RFC3339>] [--full] --output json` — thread-aware comment reads. Resolved threads come back folded by default on complete-thread reads (default list, `--recent`, `--thread` without `--tail`); pass `--full` to expand. Page older replies / threads with `--before`/`--before-id` (stderr labels: `Next reply cursor`, `Next thread cursor`); `--help` for full semantics.
-- `multica issue create --title "..." [--description-file <path>] [--priority X] [--status X] [--assignee X | --assignee-id <uuid>] [--parent <issue-id>] [--stage N] [--project <project-id>] [--due-date <RFC3339>] [--attachment <path>]` — create an issue. For agent-authored long descriptions prefer `--description-file <path>` (heredoc stdin can swallow trailing flags, #4182).
+- `multica issue create --title "..." [--description-file <path>] [--priority X] [--status X] [--assignee X | --assignee-id <uuid>] [--parent <issue-id>] [--stage N] [--project <project-id>] [--due-date <RFC3339>] [--attachment <path>]` — create an issue. For agent-authored long descriptions prefer `--description-file <path>` (heredoc stdin can swallow trailing flags, #4182). Write that file inside your working directory (e.g. `./description.md`), never `/tmp` or shared paths, and treat a failed write as fatal — the CLI rejects a path outside the workdir so a stale file from another run can't leak in (MUL-4252).
 - `multica issue update <id> [--title X] [--description-file <path>] [--priority X] [--status X] [--assignee X] [--parent <issue-id>] [--stage N] [--project <project-id>] [--due-date <RFC3339>]` — update fields; pass `--parent ""` to clear parent.
 - `multica issue status <id> <status>` — flip status (todo / in_progress / in_review / done / blocked / backlog / cancelled).
 - `multica issue children <id> [--output json]` — list a parent's sub-issues grouped by stage.
@@ -284,7 +263,7 @@ Prefer `--output json` for structured data. The default brief lists only the cor
 
 ## Comment Formatting
 
-On Windows, **always write the comment body to a UTF-8 file with your file-write tool first, then post it with `--content-file <path>`** — do NOT pipe via `--content-stdin` (PowerShell 5.1's `$OutputEncoding` defaults to ASCIIEncoding when piping to a native command, silently dropping non-ASCII characters as `?` before they reach `multica.exe`). Never use inline `--content` for agent-authored comments. Keep the same `--parent` value from the trigger comment when replying. Delete the temp file (`Remove-Item ./reply.md`) after posting; do not rely on `\n` escapes.
+On Windows, **always write the comment body to a UTF-8 file with your file-write tool first, then post it with `--content-file <path>`** — do NOT pipe via `--content-stdin` (PowerShell 5.1's `$OutputEncoding` defaults to ASCIIEncoding when piping to a native command, silently dropping non-ASCII characters as `?` before they reach `multica.exe`). Never use inline `--content` for agent-authored comments. Write that file inside your working directory (`./reply.md`), never `/tmp` or shared paths — the CLI rejects a `--content-file` path outside the workdir so another run's stale file can't leak in (MUL-4252). Keep the same `--parent` value from the trigger comment when replying. Delete the temp file (`Remove-Item ./reply.md`) after posting; do not rely on `\n` escapes.
 
 ## Project Context
 
@@ -313,15 +292,15 @@ Agent Identity instructions have priority over the assignment workflow below. If
 
 You are responsible for managing the issue status throughout your work, unless your Agent Identity forbids issue status changes.
 
-1. Run `multica issue get 22b83c27-7b4c-47a1-8bed-6f36683f4429 --output json` to understand your task
-2. Run `multica issue metadata list 22b83c27-7b4c-47a1-8bed-6f36683f4429 --output json` to see what prior agents pinned — best-effort, empty `{}` and CLI failures are normal. See the `## Issue Metadata` section above for what to look for.
-3. Run `multica issue comment list 22b83c27-7b4c-47a1-8bed-6f36683f4429 --recent 10 --output json` to catch up on recent active comment threads — this is mandatory, not optional. Earlier comments often carry context the issue body lacks (e.g. which repo to work in, the prior agent's findings, the reason the issue was reassigned to you). Skipping this step is the most common cause of agents acting on stale or incomplete instructions. Resolved threads come back folded — `--full` to expand. If the recent window shows that older context is needed, page older threads with the stderr `Next thread cursor:` values and the matching `--before` / `--before-id` flags until you have enough history.
-4. Run `multica issue status 22b83c27-7b4c-47a1-8bed-6f36683f4429 in_progress` unless your Agent Identity forbids issue status changes; if it does, skip this step.
+1. Run `multica issue get 6bffd6ae-f732-4daf-a5f0-6ed76ea1487b --output json` to understand your task
+2. Run `multica issue metadata list 6bffd6ae-f732-4daf-a5f0-6ed76ea1487b --output json` to see what prior agents pinned — best-effort, empty `{}` and CLI failures are normal. See the `## Issue Metadata` section above for what to look for.
+3. Run `multica issue comment list 6bffd6ae-f732-4daf-a5f0-6ed76ea1487b --recent 10 --output json` to catch up on recent active comment threads — this is mandatory, not optional. Earlier comments often carry context the issue body lacks (e.g. which repo to work in, the prior agent's findings, the reason the issue was reassigned to you). Skipping this step is the most common cause of agents acting on stale or incomplete instructions. Resolved threads come back folded — `--full` to expand. If the recent window shows that older context is needed, page older threads with the stderr `Next thread cursor:` values and the matching `--before` / `--before-id` flags until you have enough history.
+4. Run `multica issue status 6bffd6ae-f732-4daf-a5f0-6ed76ea1487b in_progress` unless your Agent Identity forbids issue status changes; if it does, skip this step.
 5. Complete the task within your Agent Identity boundaries. Do not investigate, implement, create issues, update issues, or delegate if your Agent Identity forbids that action; if your role is delegation-only, perform the allowed delegation work and stop once that outcome is delivered.
-6. **Post your final results as a comment — this step is mandatory**: post it with `multica issue comment add 22b83c27-7b4c-47a1-8bed-6f36683f4429` using the platform-correct non-inline mode from ## Comment Formatting (never inline `--content`). Your results are only visible to the user if posted via this CLI call; text in your terminal or run logs is NOT delivered.
+6. **Post your final results as a comment — this step is mandatory**: post it with `multica issue comment add 6bffd6ae-f732-4daf-a5f0-6ed76ea1487b` using the platform-correct non-inline mode from ## Comment Formatting (never inline `--content`). Your results are only visible to the user if posted via this CLI call; text in your terminal or run logs is NOT delivered.
 7. Before exiting: only if this run produced a fact that clears the high bar (important AND likely to be re-read by future runs on this same issue, e.g. a new PR URL or deploy URL), or you noticed a metadata key from entry that is now stale, pin or clear it via `multica issue metadata set`/`delete`. Most runs write nothing here — that is the expected outcome, not a gap. When in doubt, do not write. See the `## Issue Metadata` section above for the full bar.
-8. When done, run `multica issue status 22b83c27-7b4c-47a1-8bed-6f36683f4429 in_review` unless your Agent Identity forbids issue status changes; if it does, skip this step.
-9. If blocked, run `multica issue status 22b83c27-7b4c-47a1-8bed-6f36683f4429 blocked` unless your Agent Identity forbids issue status changes. Post a comment explaining the blocker unless your Agent Identity forbids issue comments.
+8. When done, run `multica issue status 6bffd6ae-f732-4daf-a5f0-6ed76ea1487b in_review` unless your Agent Identity forbids issue status changes; if it does, skip this step.
+9. If blocked, run `multica issue status 6bffd6ae-f732-4daf-a5f0-6ed76ea1487b blocked` unless your Agent Identity forbids issue status changes. Post a comment explaining the blocker unless your Agent Identity forbids issue comments.
 
 ## Sub-issue Creation
 
