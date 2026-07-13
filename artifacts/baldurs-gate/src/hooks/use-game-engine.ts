@@ -214,6 +214,7 @@ export function useGameEngine() {
       ...tpl,
       id: uid,
       isEnemy: true,
+      refId,
       initiative: tpl.dexterity + Math.floor(Math.random() * 20),
       statusEffects: [],
       castingSkillId: null,

@@ -54,6 +54,8 @@ export interface CombatEntity extends CharacterStats {
   x: number;
   y: number;
   speed: number; // cells per turn
+  /** Original refId from MapEntity, used for sprite lookup */
+  refId?: string;
 }
 
 export type ActionType =

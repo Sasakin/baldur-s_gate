@@ -608,53 +608,69 @@ function drawUnit(
   isMoving = false,
   isHero = false
 ) {
-  const time = Date.now();
+  const time = performance.now();
   
-  // Simple stable frame: changes every 300ms
-  const frameDelay = isMoving ? 300 : 500;
-  const frame = Math.floor((time % 2000) / frameDelay) % 4;
+  // ── Frame animation ──────────────────────────────────────────────────────
+  // Idle: 4 frames, each shown for 600ms → full cycle every 2.4s
+  // Moving: 4 frames, each shown for 250ms → faster cycle
+  const frameDelay = isMoving ? 250 : 600;
+  const frame = Math.floor(time / frameDelay) % 4;
   
-  // Shadow
+  // ── Idle bob (subtle breathing) ──────────────────────────────────────────
+  // Only applies when standing still — 2px amplitude at half the frame rate
+  let bobY = 0;
+  if (!isMoving) {
+    const bobPeriod = frameDelay * 4; // same period as full frame cycle
+    const bobProgress = (time % bobPeriod) / bobPeriod; // 0..1
+    // Smooth sine-wave bob: 0 → -2 → 0 (breathe up then back down)
+    bobY = -Math.sin(bobProgress * Math.PI * 2) * 1.5;
+  }
+  
+  const drawY = sy + bobY;
+  
+  // ── Shadow ───────────────────────────────────────────────────────────────
   ctx.save();
+  // Shadow shrinks slightly when "breathed up"
+  const shadowScale = 1 - bobY * 0.01;
   ctx.fillStyle = `rgba(0,0,0,${isMoving ? 0.3 : 0.4})`;
   ctx.beginPath();
-  ctx.ellipse(sx, sy + 2, 16, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx, sy + 2, 16 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
   
-  // Draw sprite
+  // ── Draw sprite ──────────────────────────────────────────────────────────
   if (sheet && sheet.complete && sheet.naturalWidth > 0) {
     const charIdx = SPRITE_MAP[id] ?? 0;
-    // Use 1.0 scale for 64x64 sprites (they're already bigger)
     // Heroes slightly bigger than enemies
     const drawScale = isHero ? 1.2 : 1.0;
     const drawW = SHEET_FRAME_W * drawScale;
     const drawH = SHEET_FRAME_H * drawScale;
     
-    // Position: sprite bottom at sy
+    // Position: sprite bottom at drawY
     const drawX = sx - drawW / 2;
-    const drawY = sy - drawH + 4;
+    const spriteY = drawY - drawH + 4;
     
     ctx.imageSmoothingEnabled = false;
-    drawSpriteSheet(ctx, sheet, charIdx, frame, drawX, drawY, drawScale);
+    drawSpriteSheet(ctx, sheet, charIdx, frame, drawX, spriteY, drawScale);
   } else {
     // Fallback: simple colored placeholder while sprite loads
     ctx.save()
     ctx.fillStyle = isHero ? (CLASS_COLORS[id] || "#888") : "#4a4a4a"
-    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.005) * 0.3  // gentle pulse
+    ctx.globalAlpha = 0.5 + Math.sin(time * 0.005) * 0.3  // gentle pulse
     ctx.beginPath()
-    ctx.arc(sx, sy - 10, isHero ? 14 : 12, 0, Math.PI * 2)
+    ctx.arc(sx, drawY - 10, isHero ? 14 : 12, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
   }
   
-  // HP bar for enemies
+  // ── HP bar for enemies ────────────────────────────────────────────────────
   if (!isHero) {
     const hpH = 3;
+    const hpY = drawY - 48;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(sx - 12, sy - 48, 24, hpH);
+    ctx.fillRect(sx - 12, hpY, 24, hpH);
     ctx.fillStyle = "#ff3333";
-    ctx.fillRect(sx - 12, sy - 48, 18, hpH);
+    ctx.fillRect(sx - 12, hpY, 18, hpH);
   }
 }
 
