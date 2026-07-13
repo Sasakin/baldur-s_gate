@@ -35,6 +35,82 @@ function getSpriteIdx(entity: CombatEntity): number {
   return SPRITE_MAP[entity.class] ?? 0
 }
 
+// ─── Health bar with smooth animation ────────────────────────────────────────
+function HealthBar({ entity }: { entity: CombatEntity }) {
+  const [animatedHp, setAnimatedHp] = useState(entity.hp)
+  const prevHpRef = useRef(entity.hp)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    // Skip if HP hasn't changed
+    if (entity.hp === prevHpRef.current) return
+
+    // Cancel any in-progress animation
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current)
+    }
+
+    const fromHp = prevHpRef.current
+    const toHp = entity.hp
+    const isDamage = toHp < fromHp
+    const duration = isDamage ? 500 : 300 // slower for damage, faster for heal
+    const startTime = performance.now()
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime
+      const t = Math.min(elapsed / duration, 1)
+      // Cubic ease-out for smooth deceleration
+      const eased = 1 - Math.pow(1 - t, 3)
+      const current = fromHp + (toHp - fromHp) * eased
+      setAnimatedHp(current)
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(animate)
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(animate)
+    prevHpRef.current = entity.hp
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+      }
+    }
+  }, [entity.hp])
+
+  // Sync animatedHp when entity reference changes but HP is the same (mount)
+  useEffect(() => {
+    setAnimatedHp(entity.hp)
+    prevHpRef.current = entity.hp
+  }, [entity.id, entity.hp])
+
+  const pct = Math.max(0, (animatedHp / entity.maxHp) * 100)
+
+  // Color: green > healthy, yellow > wounded, red > critical
+  const barColor =
+    pct > 60 ? '#22c55e'
+      : pct > 30 ? '#eab308'
+        : '#ef4444'
+
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="text-[7px] text-white/90 font-bold leading-none whitespace-nowrap drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+        {entity.name}
+      </span>
+      <div className="w-10 h-[5px] bg-gray-900/90 rounded-full overflow-hidden border border-gray-700/50">
+        <div
+          className="h-full rounded-full transition-none"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: barColor,
+            boxShadow: '0 0 3px rgba(0,0,0,0.5)',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 // ─── Animated sprite component ──────────────────────────────────────────────
 function EntitySprite({
   entity,
@@ -235,27 +311,16 @@ export const CombatGrid: React.FC<CombatGridProps> = ({
                 }}
                 onClick={() => onSelectMoveTarget(x, y)}
               >
-                {/* ── Entity (hero / enemy) with animated sprite ── */}
+                {/* ── Entity (hero / enemy) with animated sprite + HP ── */}
                 {entity && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="flex flex-col items-center gap-px">
+                      <HealthBar entity={entity} />
                       <EntitySprite
                         entity={entity}
                         sheet={sheet}
                         frame={frame}
                       />
-                      {/* HP bar */}
-                      <div className="w-10 h-1 bg-gray-800 rounded">
-                        <div
-                          className="h-full bg-green-500 transition-all duration-300 rounded"
-                          style={{
-                            width: `${Math.max(
-                              0,
-                              (entity.hp / entity.maxHp) * 100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
                     </div>
                   </div>
                 )}
