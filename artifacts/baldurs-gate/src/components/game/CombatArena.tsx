@@ -16,7 +16,6 @@ import { useIsMobile } from "../../hooks/use-mobile";
 import { useAudio } from "../../hooks/useAudio";
 import { EffectOverlay, EffectOverlayRef } from "./EffectOverlay";
 import { VFXOverlay, VFXOverlayRef } from "./VFXOverlay";
-import CombatGrid from "./CombatGrid";
 import ParallaxBackground from "./ParallaxBackground";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -129,6 +128,9 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
   const canTargetAlly  = isPickingTarget && selectedAction === "SKILL_2" &&
     combat.party.find(p => p.id === currentTurnId)?.class === "cleric";
 
+  // When the tactical grid is active (MOVING phase) or picking target — dim cards to reduce visual clutter
+  const isGridActive = combat.phase === "MOVING" || combat.phase === "PICK_TARGET";
+
   const floatsFor = (id: string) => combat.floatingTexts.filter(f => f.entityId === id);
 
   const allEntities = [...combat.party, ...combat.enemies];
@@ -159,7 +161,6 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
         className={`absolute ${isMobile ? "bottom-36" : "bottom-48"} inset-x-0 h-32 pointer-events-none`}
         style={{
           background: "linear-gradient(0deg, rgba(40,25,15,0.7) 0%, transparent 100%)",
-          borderTop: "1px solid rgba(180,140,60,0.15)",
           zIndex: 6,
         }}
       />
@@ -184,7 +185,9 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
         <div className="flex-1 flex flex-col justify-between px-2 pt-14 pb-36 gap-2">
 
           {/* Enemies — top */}
-          <div className="flex flex-col gap-1.5">
+          <div className={`flex flex-col gap-1.5 transition-opacity duration-300`}
+            style={{ opacity: isGridActive ? 0.25 : 1 }}
+          >
             <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-rpg-gold-dim)] text-center">
               Противники
             </div>
@@ -223,7 +226,9 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
           </div>
 
           {/* Party — bottom */}
-          <div className="flex flex-col gap-1.5">
+          <div className={`flex flex-col gap-1.5 transition-opacity duration-300`}
+            style={{ opacity: isGridActive ? 0.25 : 1 }}
+          >
             <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-rpg-gold-dim)] text-center">
               Отряд
             </div>
@@ -249,7 +254,9 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
         <div className="flex-1 flex items-center justify-between px-8 pt-16 pb-52 gap-4">
 
           {/* LEFT: Party */}
-          <div className="flex flex-col justify-center gap-3 w-[38%]">
+          <div className={`flex flex-col justify-center gap-3 w-[38%] transition-opacity duration-300`}
+            style={{ opacity: isGridActive ? 0.25 : 1 }}
+          >
             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-rpg-gold-dim)] mb-1 text-center">
               Отряд
             </div>
@@ -294,7 +301,9 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
           </div>
 
           {/* RIGHT: Enemies */}
-          <div className="flex flex-col justify-center gap-3 w-[38%] items-end">
+          <div className={`flex flex-col justify-center gap-3 w-[38%] items-end transition-opacity duration-300`}
+            style={{ opacity: isGridActive ? 0.25 : 1 }}
+          >
             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-rpg-gold-dim)] mb-1 text-center w-full">
               Противники
             </div>

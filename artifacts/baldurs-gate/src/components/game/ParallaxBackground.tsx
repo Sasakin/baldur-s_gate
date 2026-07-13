@@ -2,41 +2,27 @@
  * ParallaxBackground — multi-layer parallax background for the combat arena.
  *
  * Architecture:
- *   • 3 layers (far, mid, near) moving at different speeds on mouse movement
+ *   • 3 pure CSS gradient layers (no external images) for crisp rendering
+ *   • Layers move at different speeds on mouse movement
  *   • requestAnimationFrame loop with smooth interpolation (lerp) for 60fps
  *   • Subtle ambient drift when mouse is idle
  *   • Cleans up RAF + listeners on unmount
  *
  * Layer speeds (multiplier vs pointer delta from center):
- *   far   0.015 — distant mountains / sky
- *   mid   0.035 — battlefield mid-ground
- *   near  0.07  — foreground atmosphere / vignette
+ *   far   0.015 — distant night sky (deep space gradient + stars)
+ *   mid   0.035 — atmospheric haze / mist bands
+ *   near  0.07  — ground glow + side atmospheric effects
+ *
+ * Why pure CSS instead of images:
+ *   combat-bg.png looked blurry with blend modes and didn't cover the field well.
+ *   CSS gradients are crisp, responsive, and give a deliberate dark fantasy look.
  */
 
 import { useEffect, useRef } from "react"
 
-const BASE = import.meta.env.BASE_URL
-
 interface ParallaxBackgroundProps {
   /** Optional className for the container div */
   className?: string
-}
-
-// ─── Layer config ─────────────────────────────────────────────────────────────
-
-interface LayerConfig {
-  /** CSS background-image value (url or gradient) */
-  image: string
-  /** Movement speed multiplier relative to pointer delta */
-  speed: number
-  /** Additional CSS background properties */
-  style?: React.CSSProperties
-  /** CSS filter string */
-  filter?: string
-  /** z-index of the layer */
-  zIndex: number
-  /** Opacity of the layer */
-  opacity: number
 }
 
 export default function ParallaxBackground({ className = "" }: ParallaxBackgroundProps) {
@@ -122,58 +108,75 @@ export default function ParallaxBackground({ className = "" }: ParallaxBackgroun
       style={{ zIndex: 0 }}
     >
       {/* ────────────────────────────────────────────────────────────────────
-           Layer 1 — Far (distant mountains / sky)
-           Uses combat-bg.png at full width, dark-tinted
+           Layer 1 — Far (distant night sky)
+           Deep space gradient with subtle star-like speckles
            ───────────────────────────────────────────────────────────────── */}
       <div
         ref={farRef}
         className="absolute inset-0 will-change-transform"
         style={{
-          backgroundImage: `url('${BASE}images/combat-bg.png')`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          opacity: 0.9,
           zIndex: 1,
-          filter: "brightness(0.6) saturate(0.7)",
+          opacity: 0.9,
+          background: `
+            radial-gradient(ellipse 140% 80% at 50% 20%, #0a0a1a 0%, #050510 40%, #000000 100%),
+            repeating-linear-gradient(
+              45deg,
+              transparent 0px,
+              transparent 2px,
+              rgba(255,255,255,0.01) 2px,
+              rgba(255,255,255,0.01) 3px,
+              transparent 3px,
+              transparent 6px
+            ),
+            radial-gradient(ellipse 60% 40% at 30% 30%, rgba(100,120,200,0.06) 0%, transparent 60%),
+            radial-gradient(ellipse 50% 30% at 70% 20%, rgba(200,150,100,0.04) 0%, transparent 50%)
+          `,
         }}
       />
 
       {/* ────────────────────────────────────────────────────────────────────
-           Layer 2 — Mid (battlefield mid-ground)
-           Same combat-bg.png but zoomed in, colourised for depth
+           Layer 2 — Mid (atmospheric haze / mist bands)
+           Warm haze at bottom, cool fog at top — creates depth
            ───────────────────────────────────────────────────────────────── */}
       <div
         ref={midRef}
         className="absolute inset-0 will-change-transform"
         style={{
-          backgroundImage: `url('${BASE}images/combat-bg.png')`,
-          backgroundSize: "115%",
-          backgroundPosition: "52% 48%",
-          backgroundRepeat: "no-repeat",
-          opacity: 0.55,
           zIndex: 2,
-          filter: "brightness(0.5) sepia(0.3) contrast(1.1)",
-          mixBlendMode: "screen" as const,
+          opacity: 0.7,
+          background: `
+            linear-gradient(180deg,
+              rgba(0,10,30,0.3) 0%,
+              rgba(10,5,15,0.2) 30%,
+              rgba(30,15,10,0.3) 60%,
+              rgba(50,25,10,0.5) 80%,
+              rgba(60,30,15,0.6) 100%
+            ),
+            repeating-linear-gradient(
+              180deg,
+              transparent 0px,
+              rgba(80,40,20,0.03) 80px,
+              transparent 160px
+            )
+          `,
         }}
       />
 
       {/* ────────────────────────────────────────────────────────────────────
-           Layer 3 — Near (atmospheric gradients + vignette)
-           Pure CSS — no image needed, moves fastest
+           Layer 3 — Near (ground glow + side atmosphere)
+           Warm glow from below, cool blue/red side glows
            ───────────────────────────────────────────────────────────────── */}
       <div
         ref={nearRef}
         className="absolute inset-0 will-change-transform"
         style={{
           zIndex: 3,
-          opacity: 0.85,
+          opacity: 0.8,
           background: `
-            radial-gradient(ellipse 120% 60% at 50% 100%, rgba(80,20,0,0.5) 0%, transparent 70%),
-            radial-gradient(ellipse 80% 40% at 20% 50%, rgba(0,20,80,0.25) 0%, transparent 60%),
-            radial-gradient(ellipse 80% 40% at 80% 50%, rgba(80,0,0,0.25) 0%, transparent 60%)
+            radial-gradient(ellipse 100% 50% at 50% 100%, rgba(80,30,10,0.4) 0%, transparent 70%),
+            radial-gradient(ellipse 70% 35% at 25% 55%, rgba(0,30,80,0.12) 0%, transparent 60%),
+            radial-gradient(ellipse 70% 35% at 75% 55%, rgba(80,10,10,0.12) 0%, transparent 60%)
           `,
-          backgroundBlendMode: "overlay",
         }}
       />
 
@@ -183,7 +186,7 @@ export default function ParallaxBackground({ className = "" }: ParallaxBackgroun
         style={{
           zIndex: 5,
           background: `
-            radial-gradient(ellipse 70% 50% at 50% 50%, transparent 40%, rgba(0,0,0,0.4) 100%)
+            radial-gradient(ellipse 65% 55% at 50% 45%, transparent 35%, rgba(0,0,0,0.5) 100%)
           `,
         }}
       />
