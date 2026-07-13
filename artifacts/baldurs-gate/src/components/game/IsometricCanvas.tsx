@@ -85,13 +85,13 @@ const SPRITE_MAP: Record<string, number> = {
 };
 
 // Sprite sheet configuration
-// Frame size: 64x64 px (upgraded from 32x32)
-const SPRITE_CFG = {
-  frameW: 64,
-  frameH: 64,
-  charsPerRow: 6,
-  framesPerChar: 4,
-};
+// The current sheet has 4 animation frames per character (no direction variants).
+// Direction system (DOWN=0, LEFT=1, RIGHT=2, UP=3) is wired in so that when
+// a direction-capable sheet (4 dirs × 4 frames = 16 frames/char) replaces it,
+// set DIRS_PER_CHAR to 4 and framesPerChar to 16.
+const FRAMES_PER_DIR = 4
+const DIRS_PER_CHAR = 1   // set to 4 when direction frames exist in sheet
+const TOTAL_FRAMES_PER_CHAR = DIRS_PER_CHAR * FRAMES_PER_DIR
 
 export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,6 +105,8 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
   const vPos = useRef<Point>({ x: 0, y: 0 });
   const initRef = useRef(false);
   const dustRef = useRef<{x: number, y: number, life: number}[]>([]);
+  // Direction tracking for sprite facing — 0=DOWN, 1=LEFT, 2=RIGHT, 3=UP
+  const lastDirRef = useRef(0);
 
   // Preload Assets
   useEffect(() => {
@@ -143,6 +145,15 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
       vPos.current.y += dy * lerpSpeed;
 
       const isActuallyMoving = Math.abs(dx) > 0.02 || Math.abs(dy) > 0.02;
+
+      // Track facing direction — 0=DOWN, 1=LEFT, 2=RIGHT, 3=UP
+      if (isActuallyMoving) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          lastDirRef.current = dx > 0 ? 2 : 1 // RIGHT : LEFT
+        } else {
+          lastDirRef.current = dy > 0 ? 0 : 3 // DOWN : UP
+        }
+      }
 
       if (s.appState !== "EXPLORATION" && s.appState !== "COMBAT") return;
 
@@ -265,10 +276,10 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
                ctx.fillText("✦", sx, sy - 10);
              }
 
-             const enemy = map.enemies.find(e => e.x === tx && e.y === ty && !e.defeated);
-             if (enemy && visible) {
-                drawUnit(ctx, sx, sy, enemy.refId, imagesRef.current.heroes, false);
-             }
+              const enemy = map.enemies.find(e => e.x === tx && e.y === ty && !e.defeated);
+              if (enemy && visible) {
+                 drawUnit(ctx, sx, sy, enemy.refId, imagesRef.current.heroes, false, false, lastDirRef.current);
+              }
            }
         }
       }
@@ -285,7 +296,7 @@ export function IsometricCanvas({ stateRef, moveRef, onTileClick }: Props) {
       const { sx: psx, sy: psy } = toScreen(vpx, vpy, offsetX, offsetY);
       drawAtmosphere(ctx, psx, psy, W, H);
       
-      drawUnit(ctx, psx, psy, s.party[0]?.class || "warrior", imagesRef.current.heroes, isActuallyMoving, true);
+      drawUnit(ctx, psx, psy, s.party[0]?.class || "warrior", imagesRef.current.heroes, isActuallyMoving, true, lastDirRef.current);
       
       drawMiniMap(ctx, s, map, W, H, cols, rows);
     };
@@ -572,8 +583,7 @@ const SHEET_FRAME_W = 64;
 const SHEET_FRAME_H = 64;
 const SHEET_COLS = 6;  // characters per row
 const SHEET_ROWS = 2;  // character rows
-const FRAMES_PER_CHAR = 4;  // animation frames per direction
-const DIRS_PER_CHAR = 4;   // directions per character
+// FRAMES_PER_DIR, DIRS_PER_CHAR, TOTAL_FRAMES_PER_CHAR defined at top of file
 
 function drawSpriteSheet(
   ctx: CanvasRenderingContext2D,
@@ -583,14 +593,15 @@ function drawSpriteSheet(
   x: number, y: number,
   scale: number = 2
 ) {
-  // Sheet: 6 chars per row, each char = 4 frames horizontally
+  // Sheet: 6 chars per row, each char = framesPerDir × dirsPerChar frames
+  // When DIRS_PER_CHAR > 1, frame already encodes direction * FRAMES_PER_DIR + animFrame
   const charsPerRow = 6;
-  const framesPerChar = 4;
   
   const charCol = charIndex % charsPerRow;
   const charRow = Math.floor(charIndex / charsPerRow);
     
-  const srcX = (charCol * framesPerChar + (frame % 4)) * SHEET_FRAME_W;
+  // Use frame directly — direction is baked in by drawUnit's calculation
+  const srcX = (charCol * TOTAL_FRAMES_PER_CHAR + frame) * SHEET_FRAME_W;
   const srcY = charRow * SHEET_FRAME_H;
     
   const drawW = SHEET_FRAME_W * scale;
@@ -606,59 +617,72 @@ function drawUnit(
   id: string, 
   sheet?: HTMLImageElement,
   isMoving = false,
-  isHero = false
+  isHero = false,
+  direction = 0  // 0=DOWN, 1=LEFT, 2=RIGHT, 3=UP
 ) {
   const time = performance.now();
   
   // ── Frame animation ──────────────────────────────────────────────────────
   // Idle: 4 frames, each shown for 600ms → full cycle every 2.4s
-  // Moving: 4 frames, each shown for 250ms → faster cycle
-  const frameDelay = isMoving ? 250 : 600;
-  const frame = Math.floor(time / frameDelay) % 4;
+  // Moving: 4 frames, each shown for 150ms → faster cycle for walk
+  const frameDelay = isMoving ? 150 : 600;
+  const frameIndex = Math.floor(time / frameDelay) % FRAMES_PER_DIR;
+  
+  // Direction-aware frame: direction * framesPerDir + animationFrame
+  // Clamped to TOTAL_FRAMES_PER_CHAR so single-direction sheets still work
+  const frame = (direction * FRAMES_PER_DIR + frameIndex) % TOTAL_FRAMES_PER_CHAR;
   
   // ── Idle bob (subtle breathing) ──────────────────────────────────────────
-  // Only applies when standing still — 2px amplitude at half the frame rate
+  // Standing: gentle 1.5px sine bob up.
+  // Moving: 3px vertical + 1.5px horizontal swing (walking sway)
   let bobY = 0;
-  if (!isMoving) {
-    const bobPeriod = frameDelay * 4; // same period as full frame cycle
-    const bobProgress = (time % bobPeriod) / bobPeriod; // 0..1
-    // Smooth sine-wave bob: 0 → -2 → 0 (breathe up then back down)
-    bobY = -Math.sin(bobProgress * Math.PI * 2) * 1.5;
+  let bobX = 0;
+  if (isMoving) {
+    const stepPeriod = frameDelay * 4
+    const stepProgress = (time % stepPeriod) / stepPeriod
+    // Vertical bounce: up on each step
+    bobY = -Math.abs(Math.sin(stepProgress * Math.PI * 2)) * 3
+    // Horizontal sway: subtle side-to-side
+    bobX = Math.sin(stepProgress * Math.PI * 4) * 1.5
+  } else {
+    const breatherPeriod = frameDelay * 4
+    const breathProgress = (time % breatherPeriod) / breatherPeriod
+    // Smooth sine-wave breathing: 0 → -1.5 → 0
+    bobY = -Math.sin(breathProgress * Math.PI * 2) * 1.5
   }
   
   const drawY = sy + bobY;
+  const drawX = sx + bobX;
   
   // ── Shadow ───────────────────────────────────────────────────────────────
-  ctx.save();
-  // Shadow shrinks slightly when "breathed up"
-  const shadowScale = 1 - bobY * 0.01;
-  ctx.fillStyle = `rgba(0,0,0,${isMoving ? 0.3 : 0.4})`;
-  ctx.beginPath();
-  ctx.ellipse(sx, sy + 2, 16 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  ctx.save()
+  const shadowScale = 1 - bobY * 0.01
+  ctx.fillStyle = `rgba(0,0,0,${isMoving ? 0.25 : 0.4})`
+  ctx.beginPath()
+  ctx.ellipse(drawX, sy + 2, 16 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
   
   // ── Draw sprite ──────────────────────────────────────────────────────────
   if (sheet && sheet.complete && sheet.naturalWidth > 0) {
     const charIdx = SPRITE_MAP[id] ?? 0;
-    // Heroes slightly bigger than enemies
     const drawScale = isHero ? 1.2 : 1.0;
     const drawW = SHEET_FRAME_W * drawScale;
     const drawH = SHEET_FRAME_H * drawScale;
     
-    // Position: sprite bottom at drawY
-    const drawX = sx - drawW / 2;
+    // Position: sprite bottom at drawY, with horizontal sway
+    const spriteX = drawX - drawW / 2;
     const spriteY = drawY - drawH + 4;
     
     ctx.imageSmoothingEnabled = false;
-    drawSpriteSheet(ctx, sheet, charIdx, frame, drawX, spriteY, drawScale);
+    drawSpriteSheet(ctx, sheet, charIdx, frame, spriteX, spriteY, drawScale);
   } else {
     // Fallback: simple colored placeholder while sprite loads
     ctx.save()
     ctx.fillStyle = isHero ? (CLASS_COLORS[id] || "#888") : "#4a4a4a"
     ctx.globalAlpha = 0.5 + Math.sin(time * 0.005) * 0.3  // gentle pulse
     ctx.beginPath()
-    ctx.arc(sx, drawY - 10, isHero ? 14 : 12, 0, Math.PI * 2)
+    ctx.arc(drawX, drawY - 10, isHero ? 14 : 12, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
   }
@@ -668,9 +692,9 @@ function drawUnit(
     const hpH = 3;
     const hpY = drawY - 48;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(sx - 12, hpY, 24, hpH);
+    ctx.fillRect(drawX - 12, hpY, 24, hpH);
     ctx.fillStyle = "#ff3333";
-    ctx.fillRect(sx - 12, hpY, 18, hpH);
+    ctx.fillRect(drawX - 12, hpY, 18, hpH);
   }
 }
 
