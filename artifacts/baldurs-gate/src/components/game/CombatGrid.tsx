@@ -40,10 +40,14 @@ function EntitySprite({
   entity,
   sheet,
   frame,
+  isHovered,
+  isSelected,
 }: {
   entity: CombatEntity
   sheet: HTMLImageElement | null
   frame: number
+  isHovered?: boolean
+  isSelected?: boolean
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -167,114 +171,116 @@ export const CombatGrid: React.FC<CombatGridProps> = ({
   const gridHeight = gridSize.h * tileHeight
 
   return (
-    <div
-      className="relative"
-      style={{ width: gridWidth, height: gridHeight }}
-    >
-      {encounterGrid.tiles.map((row, y) =>
-        row.map((tileVal, x) => {
-          const entityId = grid[y][x]
-          const entity = entityId ? entityMap.get(entityId) : null
-          const isCurrentActor = entityId === currentActorId
-          const tileKey = `${x},${y}`
-          const isReachable = !entity && reachableTiles.has(tileKey)
-          const isEven = (x + y) % 2 === 0
-          const isWall = tileVal === COMBAT_TILE.WALL
+    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+      <div
+        className="relative pointer-events-auto"
+        style={{ width: gridWidth, height: gridHeight }}
+      >
+        {encounterGrid.tiles.map((row, y) =>
+          row.map((tileVal, x) => {
+            const entityId = grid[y][x]
+            const entity = entityId ? entityMap.get(entityId) : null
+            const isCurrentActor = entityId === currentActorId
+            const tileKey = `${x},${y}`
+            const isReachable = !entity && reachableTiles.has(tileKey)
+            const isEven = (x + y) % 2 === 0
+            const isWall = tileVal === COMBAT_TILE.WALL
 
-          // Background colour based on state
-          let bgColor: string
-          if (isWall) {
-            bgColor = '#3a2a1a'
-          } else if (isReachable) {
-            bgColor = '#2a6a2a'
-          } else if (isCurrentActor) {
-            bgColor = '#5a5a2a'
-          } else {
-            bgColor = isEven ? '#2a2a1a' : '#1a1a0a'
-          }
+            // Background colour based on state
+            let bgColor: string
+            if (isWall) {
+              bgColor = '#3a2a1a'
+            } else if (isReachable) {
+              bgColor = '#2a6a2a'
+            } else if (isCurrentActor) {
+              bgColor = '#5a5a2a'
+            } else {
+              bgColor = isEven ? '#2a2a1a' : '#1a1a0a'
+            }
 
-          const clickable = !!(entity || isReachable)
+            const clickable = !!(entity || isReachable)
 
-          return (
-            <div
-              key={`${x}-${y}`}
-              className={`absolute transition-all duration-150 ${
-                clickable ? 'cursor-pointer' : ''
-              } ${isReachable ? 'hover:brightness-125' : ''} ${
-                isCurrentActor ? 'z-10' : ''
-              }`}
-              style={{
-                left: x * tileWidth,
-                top: y * tileHeight,
-                width: tileWidth,
-                height: tileHeight,
-                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                backgroundColor: bgColor,
-                opacity: isWall
-                  ? 0.9
-                  : entity
-                    ? 0.85
+            return (
+              <div
+                key={`${x}-${y}`}
+                className={`absolute transition-all duration-150 ${
+                  clickable ? 'cursor-pointer' : ''
+                } ${isReachable ? 'hover:brightness-125' : ''} ${
+                  isCurrentActor ? 'z-10' : ''
+                }`}
+                style={{
+                  left: x * tileWidth,
+                  top: y * tileHeight,
+                  width: tileWidth,
+                  height: tileHeight,
+                  clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+                  backgroundColor: bgColor,
+                  opacity: isWall
+                    ? 0.9
+                    : entity
+                      ? 0.85
+                      : isReachable
+                        ? 0.75
+                        : 0.4,
+                  border: isCurrentActor
+                    ? '2px solid rgba(255, 215, 0, 0.7)'
                     : isReachable
-                      ? 0.75
-                      : 0.4,
-                border: isCurrentActor
-                  ? '2px solid rgba(255, 215, 0, 0.7)'
-                  : isReachable
-                    ? '1px solid rgba(100, 255, 100, 0.3)'
-                    : 'none',
-                boxShadow: isReachable
-                  ? 'inset 0 0 8px rgba(100, 255, 100, 0.15)'
-                  : isCurrentActor
-                    ? 'inset 0 0 12px rgba(255, 215, 0, 0.2)'
-                    : 'none',
-              }}
-              onClick={() => onSelectMoveTarget(x, y)}
-            >
-              {/* ── Entity (hero / enemy) with animated sprite ── */}
-              {entity && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-px">
-                    <EntitySprite
-                      entity={entity}
-                      sheet={sheet}
-                      frame={frame}
-                    />
-                    {/* HP bar */}
-                    <div className="w-10 h-1 bg-gray-800 rounded">
-                      <div
-                        className="h-full bg-green-500 transition-all duration-300 rounded"
-                        style={{
-                          width: `${Math.max(
-                            0,
-                            (entity.hp / entity.maxHp) * 100,
-                          )}%`,
-                        }}
+                      ? '1px solid rgba(100, 255, 100, 0.3)'
+                      : 'none',
+                  boxShadow: isReachable
+                    ? 'inset 0 0 8px rgba(100, 255, 100, 0.15)'
+                    : isCurrentActor
+                      ? 'inset 0 0 12px rgba(255, 215, 0, 0.2)'
+                      : 'none',
+                }}
+                onClick={() => onSelectMoveTarget(x, y)}
+              >
+                {/* ── Entity (hero / enemy) with animated sprite ── */}
+                {entity && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-px">
+                      <EntitySprite
+                        entity={entity}
+                        sheet={sheet}
+                        frame={frame}
                       />
+                      {/* HP bar */}
+                      <div className="w-10 h-1 bg-gray-800 rounded">
+                        <div
+                          className="h-full bg-green-500 transition-all duration-300 rounded"
+                          style={{
+                            width: `${Math.max(
+                              0,
+                              (entity.hp / entity.maxHp) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* ── Reachable tile dot indicator ── */}
-              {isReachable && !entity && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-3 h-3 bg-green-400/60 rounded-full animate-pulse" />
-                </div>
-              )}
+                {/* ── Reachable tile dot indicator ── */}
+                {isReachable && !entity && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-3 h-3 bg-green-400/60 rounded-full animate-pulse" />
+                  </div>
+                )}
 
-              {/* ── Current actor ring ── */}
-              {isCurrentActor && (
-                <div
-                  className="absolute inset-0 rounded-sm pointer-events-none"
-                  style={{
-                    boxShadow: 'inset 0 0 6px rgba(255, 215, 0, 0.5)',
-                  }}
-                />
-              )}
-            </div>
-          )
-        }),
-      )}
+                {/* ── Current actor ring ── */}
+                {isCurrentActor && (
+                  <div
+                    className="absolute inset-0 rounded-sm pointer-events-none"
+                    style={{
+                      boxShadow: 'inset 0 0 6px rgba(255, 215, 0, 0.5)',
+                    }}
+                  />
+                )}
+              </div>
+            )
+          }),
+        )}
+      </div>
     </div>
   )
 }
