@@ -1,9 +1,12 @@
-name: CI — typecheck + build
+name: CI — typecheck + build + deploy
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,3 +30,12 @@ jobs:
       - run: pnpm build
         env:
           BASE_PATH: /baldur-s_gate/
+
+      - name: Deploy to gh-pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./artifacts/baldurs-gate/dist/public
+          publish_branch: gh-pages
+          force_orphan: true
