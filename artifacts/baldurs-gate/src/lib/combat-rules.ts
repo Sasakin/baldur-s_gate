@@ -92,7 +92,7 @@ export function rollToHit(
 
 // ─── Hit / damage application ────────────────────────────────────────────────
 
-/** Apply damage to a single entity — returns { updatedEntities, didCrit } */
+/** Apply damage to a single entity — returns { entities, didCrit, dodged } */
 export function applyDamage(
   entities: CombatEntity[],
   targetId: string,
@@ -100,8 +100,9 @@ export function applyDamage(
   crit: boolean,
   floats: FloatingText[],
   logLines: string[]
-): { entities: CombatEntity[]; didCrit: boolean } {
+): { entities: CombatEntity[]; didCrit: boolean; dodged: boolean } {
   let didCrit = false;
+  let dodged = false;
 
   const result = entities.map(e => {
     if (e.id !== targetId) return e;
@@ -109,6 +110,7 @@ export function applyDamage(
     // Dodge
     const dodging = e.statusEffects.some(s => s.type === "dodge");
     if (dodging) {
+      dodged = true;
       floats.push(makeFloat("УКЛОНЕНИЕ!", "#88FFFF", e.id, "lg"));
       logLines.push(`${e.name} уклоняется от удара!`);
       return { ...e, statusEffects: e.statusEffects.filter(s => s.type !== "dodge") };
@@ -146,7 +148,7 @@ export function applyDamage(
     };
   });
 
-  return { entities: result, didCrit };
+  return { entities: result, didCrit, dodged };
 }
 
 /** Apply healing */

@@ -96,7 +96,7 @@ export interface CombatState {
 
 export interface CombatVisualEvent {
   id: string;
-  type: 'hit' | 'miss' | 'magic' | 'heal' | 'blood';
+  type: 'hit' | 'miss' | 'magic' | 'heal' | 'blood' | 'crit' | 'dodge' | 'fire' | 'ice' | 'holy';
   targetId: string;
   amount?: number;
   createdAt: number;

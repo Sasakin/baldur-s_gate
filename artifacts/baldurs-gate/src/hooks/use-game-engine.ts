@@ -68,7 +68,7 @@ export interface MoveState {
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-function makeVisualEvent(type: 'hit' | 'miss' | 'magic' | 'heal' | 'blood', targetId: string, amount?: number): CombatVisualEvent {
+function makeVisualEvent(type: CombatVisualEvent['type'], targetId: string, amount?: number): CombatVisualEvent {
   return { id: Math.random().toString(36).substring(7), type, targetId, amount, createdAt: Date.now() };
 }
 
@@ -469,16 +469,29 @@ export function useGameEngine() {
         logLines.push(`${actor.name} спотыкается! Критический промах (бросок 1)${flankNote}`);
       } else if (hitResult.hit) {
         const rawDmg = calcAttackDamage(actor);
-        vEvents.push(makeVisualEvent('blood', targetId));
-        vEvents.push(makeVisualEvent('hit', targetId, -rawDmg));
+        // Check if target is dodging before applying damage
+        const targetDodging = [...enemies, ...party].find(e => e.id === targetId)
+          ?.statusEffects.some(s => s.type === 'dodge')
+        if (targetDodging) {
+          vEvents.push(makeVisualEvent('dodge', targetId))
+        } else {
+          vEvents.push(makeVisualEvent('blood', targetId))
+          vEvents.push(makeVisualEvent('hit', targetId, -rawDmg))
+        }
         if (target.isEnemy) {
           const r = applyDamage(enemies, targetId, rawDmg, hitResult.crit, floats, logLines);
           enemies = r.entities;
-          if (r.didCrit) anyScreenShake = true;
+          if (r.didCrit) {
+            anyScreenShake = true;
+            vEvents.push(makeVisualEvent('crit', targetId));
+          }
         } else {
           const r = applyDamage(party, targetId, rawDmg, hitResult.crit, floats, logLines);
           party = r.entities;
-          if (r.didCrit) anyScreenShake = true;
+          if (r.didCrit) {
+            anyScreenShake = true;
+            vEvents.push(makeVisualEvent('crit', targetId));
+          }
         }
         const atkNum = attackCount > 1 ? ` (атака ${i + 1})` : "";
         logLines.push(`${actor.name} атакует ${t.name} (бросок ${hitResult.roll})${flankNote}${atkNum}.`);
@@ -524,8 +537,23 @@ export function useGameEngine() {
 
     const floats: FloatingText[] = [];
     const logLines: string[] = [];
+    const vEvents: CombatVisualEvent[] = [];
     const allEntities = [...s.combat.party, ...s.combat.enemies];
     const { entities: resolved, didCrit } = resolveSkill(skill.id, actor, targetId, allEntities, floats, logLines);
+
+    // Skill-specific visual events
+    const skillVFXMap: Record<string, CombatVisualEvent['type']> = {
+      backstab: 'blood',
+      shield_bash: 'hit',
+      holy_strike: 'holy',
+      divine_heal: 'heal',
+      ice_lance: 'ice',
+    }
+    const vfxType = skillVFXMap[skill.id] ?? 'magic'
+    if (targetId) {
+      vEvents.push(makeVisualEvent(vfxType, targetId))
+      if (didCrit) vEvents.push(makeVisualEvent('crit', targetId))
+    }
 
     const newParty   = resolved.filter(e => !e.isEnemy);
     const newEnemies = resolved.filter(e =>  e.isEnemy);
@@ -543,6 +571,7 @@ export function useGameEngine() {
         party: newParty.map(p => p.id === actor.id ? { ...p, mp: Math.max(0, p.mp - skill.mpCost) } : p),
         enemies: newEnemies,
         floatingTexts: [...s.combat.floatingTexts, ...floats],
+        visualEvents: [...s.combat.visualEvents, ...vEvents],
         log: [...s.combat.log, ...logLines],
         screenShake: didCrit,
       },
@@ -558,8 +587,23 @@ export function useGameEngine() {
 
     const floats: FloatingText[] = [];
     const logLines: string[] = [];
+    const vEvents: CombatVisualEvent[] = [];
     const allEntities = [...s.combat.party, ...s.combat.enemies];
     const { entities: resolved, didCrit } = resolveSkill(skillId, actor, null, allEntities, floats, logLines);
+
+    // AoE skill VFX
+    const aoeVFXMap: Record<string, CombatVisualEvent['type']> = {
+      fireball: 'fire',
+      whirlwind: 'hit',
+    }
+    const vfxType = aoeVFXMap[skillId] ?? 'magic'
+    const allTargets = [...resolved.filter(e => e.isEnemy && e.alive)]
+    allTargets.forEach(t => {
+      vEvents.push(makeVisualEvent(vfxType, t.id))
+    })
+    if (didCrit && allTargets.length > 0) {
+      vEvents.push(makeVisualEvent('crit', allTargets[0].id))
+    }
 
     const newParty   = resolved.filter(e => !e.isEnemy);
     const newEnemies = resolved.filter(e =>  e.isEnemy);
@@ -576,6 +620,7 @@ export function useGameEngine() {
         party: newParty.map(p => p.id === actor.id ? { ...p, mp: Math.max(0, p.mp - skill.mpCost) } : p),
         enemies: newEnemies,
         floatingTexts: [...s.combat.floatingTexts, ...floats],
+        visualEvents: [...s.combat.visualEvents, ...vEvents],
         log: [...s.combat.log, ...logLines],
         screenShake: didCrit,
       },
@@ -731,10 +776,17 @@ export function useGameEngine() {
             logLines.push(`${enemy.name} спотыкается! (бросок 1)`);
           } else if (hitResult.hit) {
             const rawDmg = calcAttackDamage(tickedEnemy);
-            vEvents.push(makeVisualEvent('blood', aiAction.targetId));
-            vEvents.push(makeVisualEvent('hit', aiAction.targetId, -rawDmg));
+            const targetDodging = newParty.find(p => p.id === aiAction.targetId)
+              ?.statusEffects.some(s => s.type === 'dodge')
+            if (targetDodging) {
+              vEvents.push(makeVisualEvent('dodge', aiAction.targetId))
+            } else {
+              vEvents.push(makeVisualEvent('blood', aiAction.targetId))
+              vEvents.push(makeVisualEvent('hit', aiAction.targetId, -rawDmg))
+            }
             const r = applyDamage(newParty, aiAction.targetId, rawDmg, hitResult.crit, floats, logLines);
             newParty = r.entities;
+            if (hitResult.crit) vEvents.push(makeVisualEvent('crit', aiAction.targetId));
             logLines.push(`${enemy.name} атакует ${target.name} (бросок ${hitResult.roll})${hitResult.crit ? " — КРИТ!" : "."}`);
           } else {
             floats.push(makeFloat("МИМО", "#AAAAAA", aiAction.targetId, "md"));
@@ -745,7 +797,8 @@ export function useGameEngine() {
       } else if (aiAction.type === "skill" && aiAction.skillId === "boss_magic") {
         const dmg = Math.max(5, Math.floor(tickedEnemy.intelligence * 0.8) + 6);
         newParty.filter(p => p.alive).forEach(p => {
-          vEvents.push(makeVisualEvent('magic', p.id));
+          const isDodging = p.statusEffects.some(s => s.type === 'dodge')
+          vEvents.push(makeVisualEvent(isDodging ? 'dodge' : 'magic', p.id));
           const r = applyDamage(newParty, p.id, dmg, false, floats, logLines);
           newParty = r.entities;
         });
