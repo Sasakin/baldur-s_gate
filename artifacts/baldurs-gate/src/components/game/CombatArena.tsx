@@ -15,6 +15,7 @@ import { LocalGameState, CombatEntity, FloatingText, StatusEffectType } from "..
 import { useIsMobile } from "../../hooks/use-mobile";
 import { useAudio } from "../../hooks/useAudio";
 import { EffectOverlay, EffectOverlayRef } from "./EffectOverlay";
+import { VFXOverlay, VFXOverlayRef } from "./VFXOverlay";
 import CombatGrid from "./CombatGrid";
 import ParallaxBackground from "./ParallaxBackground";
 
@@ -70,6 +71,7 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
   const isMobile  = useIsMobile();
   const { playSFX } = useAudio();
   const effectRef = useRef<EffectOverlayRef>(null);
+  const vfxRef = useRef<VFXOverlayRef>(null);
   const processedEvents = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -106,6 +108,7 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
         }
 
         effectRef.current.spawnEffect(x, y, event.type as any, event.amount);
+        vfxRef.current?.spawnEffect(x, y, event.type as any, event.amount);
       }
     });
 
@@ -162,6 +165,7 @@ export function CombatArena({ state, isPickingTarget, selectedAction, onSelectTa
       />
 
       <EffectOverlay ref={effectRef} />
+      <VFXOverlay ref={vfxRef} />
 
       {/* ── Torch sconces (hidden on mobile to save space) ────────────────── */}
       {!isMobile && (
