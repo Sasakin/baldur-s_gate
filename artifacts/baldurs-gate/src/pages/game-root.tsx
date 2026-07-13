@@ -16,6 +16,7 @@ import { RewardScreen } from "../components/game/RewardScreen";
 import { InventoryQuestPanel } from "../components/game/InventoryQuestPanel";
 import { DPad } from "../components/game/DPad";
 import { MAPS } from "../lib/game-data";
+import { LoadingScreen } from "../components/game/LoadingScreen";
 
 const MAP_NAMES: Record<string, string> = {
   thornwood: "Деревня Торнвуд",
@@ -34,6 +35,9 @@ export function GameRoot() {
   } = useGameEngine();
 
   const isMobile = useIsMobile();
+
+  // ── Loading screen ─────────────────────────────────────────────────────────
+  const [showLoading, setShowLoading] = useState(true)
 
   // ── Targeting UI state (hover tracker for CombatGrid & CombatPanel) ──────
   const [hoveredTargetId, setHoveredTargetId] = useState<string | null>(null)
@@ -81,6 +85,11 @@ export function GameRoot() {
         screenShake ? "animate-screen-shake crit-flash" : ""
       }`}
     >
+      {/* ── LOADING SCREEN (shown on startup, hides after preload) ──────── */}
+      {showLoading && (
+        <LoadingScreen onLoadingComplete={() => setShowLoading(false)} />
+      )}
+
       {/* ── EXPLORATION / REWARD: World View ─── */}
       {isInGame && !isInBattle && (
         <div className="absolute inset-0">

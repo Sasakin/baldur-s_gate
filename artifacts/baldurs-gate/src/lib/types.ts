@@ -4,6 +4,7 @@ import type {
 } from "@workspace/api-client-react";
 
 export type AppState =
+  | "LOADING"
   | "MAIN_MENU"
   | "CHAR_CREATION"
   | "EXPLORATION"
